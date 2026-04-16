@@ -1,5 +1,6 @@
 # --- Database ---
 # We ignore the binary database file but keep the .sql scripts
+stock_game_db
 *.db
 *.sqlite3
 *.db-journal
