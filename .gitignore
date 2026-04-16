@@ -5,6 +5,8 @@
 *.db-journal
 *.db-wal
 *.db-shm
+.dbeaver/
+.project
 
 # --- Python ---
 __pycache__/
