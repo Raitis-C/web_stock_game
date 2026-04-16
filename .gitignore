@@ -1,0 +1,34 @@
+# --- Database ---
+# We ignore the binary database file but keep the .sql scripts
+*.db
+*.sqlite3
+*.db-journal
+*.db-wal
+*.db-shm
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+.venv/
+
+# --- Environment Secrets ---
+# If you ever use a .env file for secret keys/passwords
+.env
+.flaskenv
+
+# --- VS Code & Editors ---
+.vscode/
+.idea/
+*.swp
+*.bak
+
+# --- Operating System ---
+.DS_Store
+Thumbs.db
+desktop.ini
