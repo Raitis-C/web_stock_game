@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stock Game Test</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        body { font-family: sans-serif; margin: 40px; background: #f4f4f4; }
+        .container { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        .stock-card { border-bottom: 1px solid #eee; padding: 10px 0; display: flex; justify-content: space-between; }
+        .news-box { background: #fff3cd; border-left: 5px solid #ffecb5; padding: 15px; margin-bottom: 20px; }
+        .price { font-weight: bold; color: green; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>📈 Market Terminal</h1>
+
+        <div class="news-box">
+            <h3>Latest Headline:</h3>
+            {% if news %}
+                <strong>{{ news['headline'] }}</strong>
+                <p>{{ news['story'] }}</p>
+            {% else %}
+                <p>No news found. Check your seed.sql!</p>
+            {% endif %}
+        </div>
+
+        <h2>Available Stocks</h2>
+        {% if stocks %}
+            {% for stock in stocks %}
+                <div class="stock-card">
+                    <span>{{ stock['name'] }} ({{ stock['symbol'] }})</span>
+                    <span class="price">${{ stock['current_price'] }}</span>
+                </div>
+            {% endfor %}
+        {% else %}
+            <p>No stocks found. Is the database empty?</p>
+        {% endif %}
+    </div>
+
+</body>
+</html>

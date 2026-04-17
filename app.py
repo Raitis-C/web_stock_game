@@ -12,8 +12,8 @@ def init_db():
         connection = sqlite3.connect(DB_PATH)
         
         # Using Path to read text is much cleaner
-        schema_file = Path("schema.sql")
-        seed_file = Path("seed.sql")
+        schema_file = Path("Scripts/schema.sql")
+        seed_file = Path("Scripts/seed.sql")
         
         if schema_file.exists():
             connection.executescript(schema_file.read_text())
@@ -24,6 +24,9 @@ def init_db():
         connection.commit()
         connection.close()
         print("✅ Database created and seeded!")
+    
+    else:
+        print(f"🚀 {DB_PATH} already there!")
 
 @app.route('/')
 def index():
