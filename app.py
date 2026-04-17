@@ -33,9 +33,14 @@ def index():
     # Connect to the DB path object (sqlite3 accepts Path objects)
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
+
+    # Fetch stock and news data from db
     stocks = conn.execute("SELECT * FROM stocks").fetchall()
+    news = conn.execute("SELECT * FROM News ORDER BY RANDOM() LIMIT 1").fetchone()
+
+    # Close db
     conn.close()
-    return render_template('index.html', stocks=stocks)
+    return render_template('index.html', stocks=stocks, news=news)
 
 if __name__ == "__main__":
     init_db()
