@@ -4,10 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Dumpster Fire Trades{% endblock %}</title>
-    <!-- Potential names: -->
-    <!-- Dumpster Fire Trades -->
-    <!-- or -->
-    <!-- The Ego Index -->
+    <!-- Potential names:
+            Dumpster Fire Trades
+            or
+            The Ego Index -->
 
     <link rel="stylesheet" href="{{ url_for('static', filename='bootstrap.min.css') }}">
     
@@ -18,44 +18,34 @@
 
 <body class="d-flex flex-column min-vh-100 bg-light">
 
-    <nav class="navbar navbar-expand-lg bg-light" data-bs-theme="light">
-        <div class="container-fluid">
-            <a class="navbar-brand" href="#">Navbar</a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarColor03" aria-controls="navbarColor03" aria-expanded="false" aria-label="Toggle navigation">
+    <nav class="navbar navbar-expand-lg bg-white border-bottom border-4 border-dark shadow-sm sticky-top mb-4">
+        <div class="container">
+            <a class="navbar-brand fw-bold text-uppercase fs-4" href="/">
+                <i class="bi bi-graph-up-arrow text-primary"></i> StockMaster
+            </a>
+            
+            <button class="navbar-toggler border-2 border-dark" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>
             </button>
-            <div class="collapse navbar-collapse" id="navbarColor03">
-                <ul class="navbar-nav me-auto">
+
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto fw-bold">
                     <li class="nav-item">
-                        <a class="nav-link active" href="#">Home
-                            <span class="visually-hidden">(current)</span>
-                        </a>
+                        <a class="nav-link text-dark" href="/">Market</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="#">Features</a>
+                        <a class="nav-link text-dark" href="#">Portfolio</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="#">Pricing</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="#">About</a>
-                    </li>
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" data-bs-toggle="dropdown" href="#" role="button" aria-haspopup="true" aria-expanded="false">Dropdown</a>
-                        <div class="dropdown-menu">
-                            <a class="dropdown-item" href="#">Action</a>
-                            <a class="dropdown-item" href="#">Another action</a>
-                            <a class="dropdown-item" href="#">Something else here</a>
-                            <div class="dropdown-divider"></div>
-                            <a class="dropdown-item" href="#">Separated link</a>
-                        </div>
+                        <a class="nav-link text-dark" href="#">Leaderboard</a>
                     </li>
                 </ul>
-                <form class="d-flex">
+                
+                <div class="d-flex align-items-center">
                     <span class="badge bg-warning text-dark border border-2 border-dark fs-6 p-2 shadow-sm">
                         <i class="bi bi-wallet2"></i> Balance: $10,000
                     </span>
-                </form>
+                </div>
             </div>
         </div>
     </nav>
