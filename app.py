@@ -76,7 +76,7 @@ thread = threading.Thread(target=live_update_prices, daemon=True)
 thread.start()
 
 @app.route('/')
-def index():
+def dashboard():
     # Connect to the DB path object (sqlite3 accepts Path objects)
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
