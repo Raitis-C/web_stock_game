@@ -9,24 +9,37 @@ app = Flask(__name__)
 DB_PATH = Path("stock_game_db")
 
 def init_db():
-    # Modern check using pathlib
     if not DB_PATH.exists():
         print(f"🚀 {DB_PATH} not found. Building database...")
         connection = sqlite3.connect(DB_PATH)
         
-        # Using Path to read text is much cleaner
+        # CRITICAL: SQLite foreign keys are OFF by default. 
+        # This line ensures your "ON DELETE CASCADE" actually works.
+        connection.execute("PRAGMA foreign_keys = ON;")
+        
         schema_file = Path("Scripts/schema.sql")
         seed_file = Path("Scripts/seed.sql")
         
-        if schema_file.exists():
-            connection.executescript(schema_file.read_text())
+        try:
+            if schema_file.exists():
+                connection.executescript(schema_file.read_text())
+                print("📜 Schema applied.")
             
-        if seed_file.exists():
-            connection.executescript(seed_file.read_text())
-            
-        connection.commit()
-        connection.close()
-        print("✅ Database created and seeded!")
+            if seed_file.exists():
+                connection.executescript(seed_file.read_text())
+                print("🌱 Seed data inserted.")
+                
+            connection.commit()
+            print("✅ Database created and seeded!")
+        except sqlite3.Error as e:
+            print(f"❌ Error during initialization: {e}")
+            # If it fails, we might want to delete the half-finished DB file
+            # so it tries again cleanly next time.
+            connection.close()
+            DB_PATH.unlink(missing_ok=True)
+            return
+        finally:
+            connection.close()
     
     else:
         print(f"🚀 {DB_PATH} already there!")
