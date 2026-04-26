@@ -48,7 +48,12 @@
                                 <span class="fw-bold fs-4">{{ stock.symbol }}</span>
                                 <span class="badge bg-light text-dark border small">STK</span>
                             </div>
-                            <div class="fs-5 fw-bold {% if stock.change > 0 %}text-success{% else %}text-danger{% endif %}">
+
+                            <div class="fs-4 fw-bold mb-1">
+                                <span id="price-{{ stock.symbol }}">{{ stock.current_price }}</span>
+                            </div>
+
+                            <div class="fs-6 fw-bold {% if stock.change > 0 %}text-success{% else %}text-danger{% endif %}">
                                 {% if stock.change > 0 %}▲{% else %}▼{% endif %} {{ stock.change|abs }}%
                             </div>
                         </div>

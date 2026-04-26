@@ -5,7 +5,7 @@ CREATE TABLE stocks (
 	symbol TEXT NOT NULL,
 	name TEXT NOT NULL,
 	current_price REAL NOT NULL
-);
+, volatility REAL DEFAULT (5) NOT NULL);
 
 
 -- users definition
