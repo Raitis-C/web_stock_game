@@ -93,10 +93,31 @@
             const response = await fetch('/api/prices');
             const data = await response.json();
 
-            for (const [symbol, price] of Object.entries(data)) {
+            for (const [symbol, info] of Object.entries(data)) {
+                // 1. Update the Price
                 const priceElement = document.getElementById(`price-${symbol}`);
                 if (priceElement) {
-                    priceElement.innerText = price.toFixed(2);
+                    priceElement.innerText = info.price.toFixed(2);
+                }
+
+                // 2. Update the Growth Percentage
+                // We find the price element, go up to its parent, and look for the growth div
+                const priceContainer = document.getElementById(`price-${symbol}`);
+                if (priceContainer) {
+                    const parentCard = priceContainer.closest('.d-flex.flex-column');
+                    const growthElement = parentCard.querySelector('.fs-6.fw-bold');
+                    
+                    if (growthElement) {
+                        const arrow = info.growth >= 0 ? "▲" : "▼";
+                        growthElement.innerText = `${arrow} ${Math.abs(info.growth).toFixed(2)}%`;
+
+                        // Update Colors
+                        if (info.growth >= 0) {
+                            growthElement.classList.replace('text-danger', 'text-success');
+                        } else {
+                            growthElement.classList.replace('text-success', 'text-danger');
+                        }
+                    }
                 }
             }
         } catch (error) {
