@@ -6,47 +6,46 @@ import threading
 from flask import Flask, render_template, jsonify
 
 app = Flask(__name__)
-DB_PATH = Path("stock_game_db")
+DB_PATH = Path("stock_game_db.db")
+
 
 def init_db():
-    if not DB_PATH.exists():
-        print(f"🚀 {DB_PATH} not found. Building database...")
-        connection = sqlite3.connect(DB_PATH)
-        
-        # CRITICAL: SQLite foreign keys are OFF by default. 
-        # This line ensures your "ON DELETE CASCADE" actually works.
-        connection.execute("PRAGMA foreign_keys = ON;")
-        
-        schema_file = Path("Scripts/schema.sql")
-        seed_file = Path("Scripts/seed.sql")
-        
-        try:
+    if DB_PATH.exists():
+        print(f"🚀 {DB_PATH} already exists.")
+        return
+
+    print(f"🚀 Building database at {DB_PATH}...")
+    
+    try:
+        with sqlite3.connect(DB_PATH) as connection:
+            connection.execute("PRAGMA foreign_keys = ON;")
+            
+            # Using absolute paths relative to the app root is often safer in Flask
+            schema_file = Path("Scripts/schema.sql") 
+            seed_file = Path("Scripts/seed.sql")
+            
             if schema_file.exists():
-                connection.executescript(schema_file.read_text())
+                connection.executescript(schema_file.read_text(encoding="utf-8"))
                 print("📜 Schema applied.")
             
             if seed_file.exists():
-                connection.executescript(seed_file.read_text())
+                connection.executescript(seed_file.read_text(encoding="utf-8"))
                 print("🌱 Seed data inserted.")
                 
-            connection.commit()
-            print("✅ Database created and seeded!")
-        except sqlite3.Error as e:
-            print(f"❌ Error during initialization: {e}")
-            # If it fails, we might want to delete the half-finished DB file
-            # so it tries again cleanly next time.
-            connection.close()
-            DB_PATH.unlink(missing_ok=True)
-            return
-        finally:
-            connection.close()
-    
-    else:
-        print(f"🚀 {DB_PATH} already there!")
+        print("✅ Database initialized successfully!")
 
-def live_update_prices():
+    except (sqlite3.Error, Exception) as e:
+        print(f"❌ Error: {e}")
+        if DB_PATH.exists():
+            try:
+                # Use unlink to ensure we don't leave a broken file
+                DB_PATH.unlink()
+                print("🗑️ Cleaned up corrupted database file.")
+            except Exception as cleanup_err:
+                print(f"⚠️ Cleanup failed: {cleanup_err}")
+
+def live_price_updates():
     """This function runs in the background forever, updating prices."""
-    print("💓 Price heartbeat started...")
     while True:
         try:
             # 1. Connect to the DB
@@ -78,15 +77,12 @@ def live_update_prices():
             # print(f"💹 Market Tick: Prices updated.") # Optional: Unmute for debugging
             
         except Exception as e:
-            print(f"❌ Heartbeat Error: {e}")
+            print(f"❌ live_price_updates Error: {e}")
 
         # 5. Wait for 5 seconds
         time.sleep(5)
 
-# --- START THE THREAD ---
-# This starts the function above as a 'daemon', meaning it dies when you stop app.py
-thread = threading.Thread(target=live_update_prices, daemon=True)
-thread.start()
+
 
 @app.route('/')
 def dashboard():
@@ -146,4 +142,10 @@ def get_prices():
 
 if __name__ == "__main__":
     init_db()
+
+    # --- START THE THREAD ---
+    # This starts the function above as a 'daemon', meaning it dies when you stop app.py
+    thread = threading.Thread(target=live_price_updates, daemon=True)
+    thread.start()
+
     app.run(debug=True)

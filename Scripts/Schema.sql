@@ -4,8 +4,11 @@ CREATE TABLE stocks (
 	id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
 	symbol TEXT NOT NULL,
 	name TEXT NOT NULL,
-	current_price REAL NOT NULL
-, volatility REAL DEFAULT (5) NOT NULL, opening_price REAL DEFAULT (375) NOT NULL);
+	initial_price REAL NOT NULL,
+	current_price REAL,
+	opening_price REAL,
+	volatility REAL NOT NULL
+);
 
 
 -- users definition
