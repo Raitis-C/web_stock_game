@@ -4,7 +4,10 @@ DELETE FROM stocks;
 
 -- 2. Insert Stocks
 INSERT INTO stocks (symbol, name, initial_price, volatility) VALUES 
-('SPACEX', 'Space Exploration Technologies Corp', 375, 5);
+('SPACEX', 'Space Exploration Technologies Corp', 375, 5),
+('BTC', 'Bitcoin', 90000, 500),
+('WEAT', 'Wheat', 600, 1),
+('CL', 'Crude Oil WTI', 94, 3)
 
 -- 3. Insert News (Dynamic ID lookup)
 INSERT INTO News (headline, story, stock_id, effect) VALUES 
