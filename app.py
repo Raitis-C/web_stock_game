@@ -35,12 +35,24 @@ def index():
     conn.row_factory = sqlite3.Row
 
     # Fetch stock and news data from db
-    stocks = conn.execute("SELECT * FROM stocks").fetchall()
-    news = conn.execute("SELECT * FROM News ORDER BY RANDOM() LIMIT 1").fetchone()
+    # stocks = conn.execute("SELECT * FROM stocks").fetchall()
+    # news = conn.execute("SELECT * FROM News ORDER BY RANDOM() LIMIT 1").fetchone()
+
+    mock_stocks = [
+        {'symbol': 'BTC', 'change': 2.54},
+        {'symbol': 'APPL', 'change': -1.15},
+        {'symbol': 'TSLA', 'change': 0.85}
+    ]
+    
+    mock_news = [
+        {'headline': 'Apple releases iToster, bread price skyrockets', 'impact': 5.2},
+        {'headline': 'CEO of popular tech company admits he just guesses what buttons do', 'impact': -8.4},
+        {'headline': 'Scientists discover new color, patent pending', 'impact': 1.1}
+    ]
 
     # Close db
     conn.close()
-    return render_template('index.html', stocks=stocks, news=news)
+    return render_template('dashboard.html', stocks=mock_stocks, news=mock_news)
 
 if __name__ == "__main__":
     init_db()
