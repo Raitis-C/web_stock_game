@@ -134,23 +134,25 @@ def dashboard():
 def get_prices():
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
-    # Pull opening_price so we can calculate growth
     stocks = conn.execute("SELECT symbol, current_price, opening_price FROM stocks").fetchall()
     conn.close()
     
-    data = {}
+    stock_list = []
     for stock in stocks:
         current = stock['current_price']
         opening = stock['opening_price'] if stock['opening_price'] else current
-        
         growth = ((current - opening) / opening * 100) if opening != 0 else 0
         
-        data[stock['symbol']] = {
-            "price": current,
+        stock_list.append({
+            "symbol": stock['symbol'],
+            "price": round(current, 2),
             "growth": round(growth, 2)
-        }
-        
-    return jsonify(data)
+        })
+    
+    # Sort by growth (Highest to Lowest)
+    sorted_stocks = sorted(stock_list, key=lambda x: x['growth'], reverse=True)
+    
+    return jsonify(sorted_stocks)
 
 if __name__ == "__main__":
     init_db()
