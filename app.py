@@ -82,14 +82,14 @@ def dashboard():
     conn.row_factory = sqlite3.Row
 
     # Fetch stock and news data from db
-    # stocks = conn.execute("SELECT * FROM stocks").fetchall()
+    stocks = conn.execute("SELECT * FROM stocks").fetchall()
     # news = conn.execute("SELECT * FROM News ORDER BY RANDOM() LIMIT 1").fetchone()
 
-    mock_stocks = [
-        {'symbol': 'BTC', 'change': 2.54},
-        {'symbol': 'APPL', 'change': -1.15},
-        {'symbol': 'TSLA', 'change': 0.85}
-    ]
+    # mock_stocks = [
+    #     {'symbol': 'BTC', 'change': 2.54},
+    #     {'symbol': 'APPL', 'change': -1.15},
+    #     {'symbol': 'TSLA', 'change': 0.85}
+    # ]
     
     mock_news = [
         {'headline': 'Apple releases iToster, bread price skyrockets', 'impact': 5.2},
@@ -97,9 +97,29 @@ def dashboard():
         {'headline': 'Scientists discover new color, patent pending', 'impact': 1.1}
     ]
 
+    # 2. Convert to list of dicts and calculate growth
+    stocks_list = []
+    for row in stocks:
+        stock = dict(row)
+        # Calculate % change
+        opening = stock['opening_price']
+        current = stock['current_price']
+        
+        # Avoid division by zero just in case
+        if opening > 0:
+            growth = ((current - opening) / opening) * 100
+        else:
+            growth = 0
+            
+        stock['change_percent'] = round(growth, 2)
+        stocks_list.append(stock)
+
+    # 3. Sort by growth (Highest to Lowest) and take top 3
+    trending_stocks = sorted(stocks_list, key=lambda x: x['change_percent'], reverse=True)[:3]
+
     # Close db
     conn.close()
-    return render_template('dashboard.html', stocks=mock_stocks, news=mock_news)
+    return render_template('dashboard.html', stocks=stocks_list, news=mock_news, trending=trending_stocks)
 
 @app.route('/api/prices')
 def get_prices():
