@@ -92,35 +92,40 @@ def live_price_updates():
 
 @app.route('/')
 def dashboard():
-    # Connect to the DB path object (sqlite3 accepts Path objects)
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
 
-    # Fetch stock and news data from db
-    stocks = conn.execute("SELECT * FROM stocks").fetchall()
-    # news = conn.execute("SELECT * FROM News ORDER BY RANDOM() LIMIT 1").fetchone()
+    # NEW SQL: Fetch the stock data AND the very first price recorded today
+    query = """
+        SELECT 
+            s.*,
+            (
+                SELECT price 
+                FROM price_history ph 
+                WHERE ph.stock_id = s.id 
+                  AND date(ph.timestamp, 'localtime') = date('now', 'localtime')
+                ORDER BY ph.timestamp ASC 
+                LIMIT 1
+            ) as today_open_price
+        FROM stocks s
+    """
+    stocks = conn.execute(query).fetchall()
 
-    # mock_stocks = [
-    #     {'symbol': 'BTC', 'change': 2.54},
-    #     {'symbol': 'APPL', 'change': -1.15},
-    #     {'symbol': 'TSLA', 'change': 0.85}
-    # ]
-    
     mock_news = [
         {'headline': 'Apple releases iToster, bread price skyrockets', 'impact': 5.2},
         {'headline': 'CEO of popular tech company admits he just guesses what buttons do', 'impact': -8.4},
         {'headline': 'Scientists discover new color, patent pending', 'impact': 1.1}
     ]
 
-    # 2. Convert to list of dicts and calculate growth
     stocks_list = []
     for row in stocks:
         stock = dict(row)
-        # Calculate % change
-        opening = stock['opening_price']
-        current = stock['current_price']
         
-        # Avoid division by zero just in case
+        # Use today's first recorded price. If None, fallback to the seed opening_price.
+        current = stock['current_price']
+        opening = stock['today_open_price'] if stock['today_open_price'] is not None else stock['opening_price']
+        
+        # Calculate % change
         if opening > 0:
             growth = ((current - opening) / opening) * 100
         else:
@@ -129,24 +134,41 @@ def dashboard():
         stock['change_percent'] = round(growth, 2)
         stocks_list.append(stock)
 
-    # 3. Sort by growth (Highest to Lowest) and take top 3
     trending_stocks = sorted(stocks_list, key=lambda x: x['change_percent'], reverse=True)[:3]
-
-    # Close db
     conn.close()
+    
     return render_template('dashboard.html', stocks=stocks_list, news=mock_news, trending=trending_stocks)
 
 @app.route('/api/prices')
 def get_prices():
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
-    stocks = conn.execute("SELECT symbol, current_price, opening_price FROM stocks").fetchall()
+    
+    # NEW SQL: Same logic for the live API
+    query = """
+        SELECT 
+            s.symbol, 
+            s.current_price, 
+            s.opening_price,
+            (
+                SELECT price 
+                FROM price_history ph 
+                WHERE ph.stock_id = s.id 
+                  AND date(ph.timestamp, 'localtime') = date('now', 'localtime')
+                ORDER BY ph.timestamp ASC 
+                LIMIT 1
+            ) as today_open_price
+        FROM stocks s
+    """
+    stocks = conn.execute(query).fetchall()
     conn.close()
     
     stock_list = []
     for stock in stocks:
         current = stock['current_price']
-        opening = stock['opening_price'] if stock['opening_price'] else current
+        # Same fallback logic here
+        opening = stock['today_open_price'] if stock['today_open_price'] is not None else stock['opening_price']
+        
         growth = ((current - opening) / opening * 100) if opening != 0 else 0
         
         stock_list.append({
@@ -155,9 +177,7 @@ def get_prices():
             "growth": round(growth, 2)
         })
     
-    # Sort by growth (Highest to Lowest)
     sorted_stocks = sorted(stock_list, key=lambda x: x['growth'], reverse=True)
-    
     return jsonify(sorted_stocks)
 
 @app.route('/api/history/<symbol>')
