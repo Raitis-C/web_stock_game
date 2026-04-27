@@ -7,11 +7,10 @@
         background-color: #f1f3f5;
         border: 1px solid #dee2e6;
         border-radius: 12px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
+        /* Remove flex centering so the chart can fill the space */
         flex-grow: 1;
         margin: 10px;
+        overflow: hidden; /* Keeps the chart line from spilling out */
     }
 
     .stock-card-custom {
@@ -38,9 +37,11 @@
                     <div class="card-body d-flex p-0" style="min-height: 120px;">
                         
                         <div class="chart-container-flat">
-                             <span class="text-muted small fw-bold opacity-50">
+                            <!-- commented is placeholder text explaining what should be in the chart box  -->
+                            <!-- <span class="text-muted small fw-bold opacity-50">
                                 <i class="bi bi-graph-up"></i> {{ stock.symbol }} PERFORMANCE
-                             </span>
+                             </span> -->
+                             <div id="chart-{{ stock.symbol }}" style="width: 100%;"></div>
                         </div>
                         
                         <div class="d-flex flex-column justify-content-center p-4 bg-white border-start" style="min-width: 200px;">
@@ -88,33 +89,74 @@
 </div>
 
 <script>
+    // 1. The new function that actually draws the chart
+    async function renderStockChart(symbol, isPositive) {
+        try {
+            // Fetch the history for this specific stock
+            const response = await fetch(`/api/history/${symbol}`);
+            const data = await response.json();
+
+            // Setup ApexCharts
+            const options = {
+                series: [{
+                    name: 'Price',
+                    data: data.prices
+                }],
+                chart: {
+                    type: 'area', // Area chart looks cooler than a plain line
+                    height: 100,
+                    sparkline: { enabled: true },
+                    animations: { enabled: false } // Turn off animations so it doesn't glitch every 5s
+                },
+                stroke: {
+                    curve: 'smooth',
+                    width: 2
+                },
+                fill: {
+                    opacity: 0.2
+                },
+                // Make the line green if going up, red if going down
+                colors: [isPositive ? '#198754' : '#dc3545'], 
+                tooltip: {
+                    fixed: { enabled: false },
+                    x: { show: false },
+                    y: {
+                        title: { formatter: function (seriesName) { return '' } }
+                    },
+                    marker: { show: false }
+                }
+            };
+
+            // Draw it inside the div
+            const chart = new ApexCharts(document.querySelector(`#chart-${symbol}`), options);
+            chart.render();
+            
+        } catch (error) {
+            console.error(`Error rendering chart for ${symbol}:`, error);
+        }
+    }
+
+    // 2. Your existing updatePrices function
     async function updatePrices() {
         try {
             const response = await fetch('/api/prices');
             const sortedStocks = await response.json();
 
-            // 1. Target the container
             const trendingContainer = document.querySelector('.col-lg-8 .d-flex.flex-column');
-            
-            // 2. Only grab the top 3
             const top3 = sortedStocks.slice(0, 3);
 
-            // 3. CLEAN THE SLATE
-            // This prevents the list from growing infinitely
             trendingContainer.innerHTML = '';
 
-            // 4. Rebuild the 3 cards
             top3.forEach(stock => {
                 const arrow = stock.growth >= 0 ? "▲" : "▼";
                 const colorClass = stock.growth >= 0 ? "text-success" : "text-danger";
+                const isPositive = stock.growth >= 0;
 
                 const cardHtml = `
                 <div class="card stock-card-custom shadow-sm border-0 rounded-4 overflow-hidden mb-3">
                     <div class="card-body d-flex p-0" style="min-height: 120px;">
                         <div class="chart-container-flat">
-                             <span class="text-muted small fw-bold opacity-50">
-                                ${stock.symbol} PERFORMANCE
-                             </span>
+                             <div id="chart-${stock.symbol}" style="width: 100%;"></div>
                         </div>
                         <div class="d-flex flex-column justify-content-center p-4 bg-white border-start" style="min-width: 200px;">
                             <div class="d-flex align-items-center gap-2 mb-1">
@@ -130,7 +172,11 @@
                         </div>
                     </div>
                 </div>`;
+                
                 trendingContainer.insertAdjacentHTML('beforeend', cardHtml);
+                
+                // NOW THIS FUNCTION EXISTS! It won't crash anymore.
+                renderStockChart(stock.symbol, isPositive);
             });
 
         } catch (error) {
@@ -138,7 +184,11 @@
         }
     }
 
+    // 3. Run it immediately on page load, then set the 5-second interval
+    updatePrices();
     setInterval(updatePrices, 5000);
 </script>
+
+<script src="https://cdn.jsdelivr.net/npm/apexcharts@5.10.6"></script>
 
 {% endblock %}

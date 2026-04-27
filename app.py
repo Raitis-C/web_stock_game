@@ -53,6 +53,9 @@ def live_price_updates():
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
 
+            # IMPORTANT: This makes sure your ON DELETE CASCADE actually works!
+            cursor.execute("PRAGMA foreign_keys = ON;")
+
             # 2. Get all stocks
             stocks = cursor.execute("SELECT id, current_price, volatility FROM stocks").fetchall()
 
@@ -70,6 +73,9 @@ def live_price_updates():
                     "UPDATE stocks SET current_price = ? WHERE id = ?", 
                     (new_price, stock['id'])
                 )
+
+                # 5. Log price history
+                cursor.execute("INSERT INTO price_history (stock_id, price) VALUES (?, ?)", (stock['id'], new_price))
 
             conn.commit()
             conn.close()
@@ -153,6 +159,28 @@ def get_prices():
     sorted_stocks = sorted(stock_list, key=lambda x: x['growth'], reverse=True)
     
     return jsonify(sorted_stocks)
+
+@app.route('/api/history/<symbol>')
+def get_stock_history(symbol):
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    
+    # Get the last 20 price points for this specific symbol
+    query = """
+        SELECT ph.price, ph.timestamp 
+        FROM price_history ph
+        JOIN stocks s ON ph.stock_id = s.id
+        WHERE s.symbol = ?
+        ORDER BY ph.timestamp DESC
+        LIMIT 20
+    """
+    history = conn.execute(query, (symbol,)).fetchall()
+    conn.close()
+
+    # ApexCharts likes a simple list of numbers for basic charts
+    # We reverse it so the oldest price is first (left side of chart)
+    prices = [row['price'] for row in history][::-1]
+    return jsonify({"prices": prices})
 
 if __name__ == "__main__":
     init_db()
