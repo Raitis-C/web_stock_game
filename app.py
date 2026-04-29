@@ -185,21 +185,29 @@ def get_stock_history(symbol):
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     
-    # Get the last 20 price points for this specific symbol
+    # NEW QUERY: 
+    # 1. Filters by TODAY
+    # 2. Uses 'row_number' to only take every 5th or 10th record (keeps chart fast)
     query = """
-        SELECT ph.price, ph.timestamp 
-        FROM price_history ph
-        JOIN stocks s ON ph.stock_id = s.id
-        WHERE s.symbol = ?
-        ORDER BY ph.timestamp DESC
-        LIMIT 20
+        SELECT price, timestamp FROM (
+            SELECT ph.price, ph.timestamp, 
+                   ROW_NUMBER() OVER (ORDER BY ph.timestamp ASC) as row_num
+            FROM price_history ph
+            JOIN stocks s ON ph.stock_id = s.id
+            WHERE s.symbol = ? 
+              AND date(ph.timestamp, 'localtime') = date('now', 'localtime')
+        )
+        WHERE row_num % 5 = 0 OR row_num = 1
+        ORDER BY timestamp ASC
     """
+    
     history = conn.execute(query, (symbol,)).fetchall()
     conn.close()
 
-    # ApexCharts likes a simple list of numbers for basic charts
-    # We reverse it so the oldest price is first (left side of chart)
-    prices = [row['price'] for row in history][::-1]
+    # If the app just started and there's no history for today yet, 
+    # we return an empty list so the chart doesn't crash.
+    prices = [row['price'] for row in history]
+    
     return jsonify({"prices": prices})
 
 if __name__ == "__main__":
