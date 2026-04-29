@@ -88,97 +88,62 @@ def live_price_updates():
         # 5. Wait for 5 seconds
         time.sleep(5)
 
-
-
-@app.route('/')
-def dashboard():
+def get_stocks_with_growth():
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
-
-    # NEW SQL: Fetch the stock data AND the very first price recorded today
+    
+    # This one query handles the logic for both the Dashboard and the API
     query = """
         SELECT 
             s.*,
-            (
-                SELECT price 
-                FROM price_history ph 
-                WHERE ph.stock_id = s.id 
-                  AND date(ph.timestamp, 'localtime') = date('now', 'localtime')
-                ORDER BY ph.timestamp ASC 
-                LIMIT 1
-            ) as today_open_price
+            COALESCE(
+                (SELECT price FROM price_history ph 
+                 WHERE ph.stock_id = s.id 
+                 AND date(ph.timestamp, 'localtime') = date('now', 'localtime')
+                 ORDER BY ph.timestamp ASC LIMIT 1),
+                s.opening_price
+            ) as day_start_price
         FROM stocks s
     """
-    stocks = conn.execute(query).fetchall()
+    rows = conn.execute(query).fetchall()
+    conn.close()
+
+    stocks_list = []
+    for row in rows:
+        stock = dict(row)
+        current = stock['current_price']
+        opening = stock['day_start_price']
+        
+        growth = ((current - opening) / opening * 100) if opening > 0 else 0
+        
+        stock['change_percent'] = round(growth, 2)
+        stocks_list.append(stock)
+        
+    return stocks_list
+
+@app.route('/')
+def dashboard():
+    all_stocks = get_stocks_with_growth()
+    # Sort for the trending section
+    trending = sorted(all_stocks, key=lambda x: x['change_percent'], reverse=True)[:3]
 
     mock_news = [
         {'headline': 'Apple releases iToster, bread price skyrockets', 'impact': 5.2},
         {'headline': 'CEO of popular tech company admits he just guesses what buttons do', 'impact': -8.4},
         {'headline': 'Scientists discover new color, patent pending', 'impact': 1.1}
     ]
-
-    stocks_list = []
-    for row in stocks:
-        stock = dict(row)
-        
-        # Use today's first recorded price. If None, fallback to the seed opening_price.
-        current = stock['current_price']
-        opening = stock['today_open_price'] if stock['today_open_price'] is not None else stock['opening_price']
-        
-        # Calculate % change
-        if opening > 0:
-            growth = ((current - opening) / opening) * 100
-        else:
-            growth = 0
-            
-        stock['change_percent'] = round(growth, 2)
-        stocks_list.append(stock)
-
-    trending_stocks = sorted(stocks_list, key=lambda x: x['change_percent'], reverse=True)[:3]
-    conn.close()
     
-    return render_template('dashboard.html', stocks=stocks_list, news=mock_news, trending=trending_stocks)
+    return render_template('dashboard.html', 
+                           stocks=all_stocks, 
+                           trending=trending, 
+                           news=mock_news)
+
+
 
 @app.route('/api/prices')
 def get_prices():
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    
-    # NEW SQL: Same logic for the live API
-    query = """
-        SELECT 
-            s.symbol, 
-            s.current_price, 
-            s.opening_price,
-            (
-                SELECT price 
-                FROM price_history ph 
-                WHERE ph.stock_id = s.id 
-                  AND date(ph.timestamp, 'localtime') = date('now', 'localtime')
-                ORDER BY ph.timestamp ASC 
-                LIMIT 1
-            ) as today_open_price
-        FROM stocks s
-    """
-    stocks = conn.execute(query).fetchall()
-    conn.close()
-    
-    stock_list = []
-    for stock in stocks:
-        current = stock['current_price']
-        # Same fallback logic here
-        opening = stock['today_open_price'] if stock['today_open_price'] is not None else stock['opening_price']
-        
-        growth = ((current - opening) / opening * 100) if opening != 0 else 0
-        
-        stock_list.append({
-            "symbol": stock['symbol'],
-            "price": round(current, 2),
-            "growth": round(growth, 2)
-        })
-    
-    sorted_stocks = sorted(stock_list, key=lambda x: x['growth'], reverse=True)
-    return jsonify(sorted_stocks)
+    # The API just returns the list we already built
+    return jsonify(get_stocks_with_growth())
 
 @app.route('/api/history/<symbol>')
 def get_stock_history(symbol):
