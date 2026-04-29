@@ -139,11 +139,46 @@ def dashboard():
                            news=mock_news)
 
 
-
 @app.route('/api/prices')
 def get_prices():
-    # The API just returns the list we already built
-    return jsonify(get_stocks_with_growth())
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    
+    # NEW SQL: Same logic for the live API
+    query = """
+        SELECT 
+            s.symbol, 
+            s.current_price, 
+            s.opening_price,
+            (
+                SELECT price 
+                FROM price_history ph 
+                WHERE ph.stock_id = s.id 
+                  AND date(ph.timestamp, 'localtime') = date('now', 'localtime')
+                ORDER BY ph.timestamp ASC 
+                LIMIT 1
+            ) as today_open_price
+        FROM stocks s
+    """
+    stocks = conn.execute(query).fetchall()
+    conn.close()
+    
+    stock_list = []
+    for stock in stocks:
+        current = stock['current_price']
+        # Same fallback logic here
+        opening = stock['today_open_price'] if stock['today_open_price'] is not None else stock['opening_price']
+        
+        growth = ((current - opening) / opening * 100) if opening != 0 else 0
+        
+        stock_list.append({
+            "symbol": stock['symbol'],
+            "price": round(current, 2),
+            "growth": round(growth, 2)
+        })
+    
+    sorted_stocks = sorted(stock_list, key=lambda x: x['growth'], reverse=True)
+    return jsonify(sorted_stocks)
 
 @app.route('/api/history/<symbol>')
 def get_stock_history(symbol):
