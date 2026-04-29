@@ -7,12 +7,10 @@ INSERT OR IGNORE INTO stocks (symbol, name, initial_price, volatility) VALUES
 
 -- 2. Insert News (Dynamic ID lookup)
 INSERT OR IGNORE INTO News (headline, story, stock_id, effect) VALUES 
-(
-  'Elon Musk buys Mars', 
-  'SpaceX stock reaches the moon literally.', 
-  (SELECT id FROM stocks WHERE symbol = 'SPACEX'), -- Find the ID automatically!
-  700
-);
+('Elon Musk buys Mars, SpaceX stock reaches moon literally', (SELECT id FROM stocks WHERE symbol = 'SPACEX'), 700),
+('Apple releases iToster, bread price skyrockets', (SELECT id FROM stocks WHERE symbol = 'WHEAT'), 450),
+('CEO of popular tech company admits he just guesses what buttons do', (SELECT id FROM stocks WHERE symbol = 'SpaceX'), -250),
+('Scientists discorver new color, patent pending', (SELECT id FROM stocks WHERE symbol = 'SpaceX'), 75);
 
 
 -- 3. Set current_price and opening_price to initial_price ONLY if they are currently NULL
