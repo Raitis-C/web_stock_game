@@ -121,22 +121,44 @@ def get_stocks_with_growth():
         
     return stocks_list
 
+def get_db_news(limit=3):
+    """Fetches random news items joined with their stock symbols."""
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        # We join with stocks so we can show WHICH stock is being affected
+        query = """
+            SELECT n.headline, n.effect as impact, s.symbol 
+            FROM News n
+            JOIN stocks s ON n.stock_id = s.id
+            ORDER BY RANDOM()
+            LIMIT ?
+        """
+        news_rows = conn.execute(query, (limit,)).fetchall()
+        conn.close()
+        return [dict(row) for row in news_rows]
+    except Exception as e:
+        print(f"❌ Error fetching news: {e}")
+        return []
+
 @app.route('/')
 def dashboard():
     all_stocks = get_stocks_with_growth()
     # Sort for the trending section
     trending = sorted(all_stocks, key=lambda x: x['change_percent'], reverse=True)[:3]
 
-    mock_news = [
-        {'headline': 'Apple releases iToster, bread price skyrockets', 'impact': 5.2},
-        {'headline': 'CEO of popular tech company admits he just guesses what buttons do', 'impact': -8.4},
-        {'headline': 'Scientists discover new color, patent pending', 'impact': 1.1}
-    ]
+    # mock_news = [
+    #     {'headline': 'Apple releases iToster, bread price skyrockets', 'impact': 5.2},
+    #     {'headline': 'CEO of popular tech company admits he just guesses what buttons do', 'impact': -8.4},
+    #     {'headline': 'Scientists discover new color, patent pending', 'impact': 1.1}
+    # ]
     
+    news = get_db_news()
+
     return render_template('dashboard.html', 
                            stocks=all_stocks, 
                            trending=trending, 
-                           news=mock_news)
+                           news=news)
 
 
 @app.route('/api/prices')
@@ -209,6 +231,11 @@ def get_stock_history(symbol):
     prices = [row['price'] for row in history]
     
     return jsonify({"prices": prices})
+
+@app.route('/api/news')
+def get_news_api():
+    """API endpoint for the frontend to fetch fresh news."""
+    return jsonify(get_db_news())
 
 if __name__ == "__main__":
     init_db()

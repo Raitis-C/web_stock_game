@@ -69,13 +69,13 @@
             <div class="card shadow-sm border-0 rounded-4 bg-white sticky-top" style="top: 100px;">
                 <div class="card-body p-4">
                     <h4 class="fw-bold mb-4 text-uppercase">Breaking News 📰</h4>
-                    <div class="d-flex flex-column gap-3">
+                    <div id="news-container" class="d-flex flex-column gap-3">
                         {% for item in news %}
                         <div class="p-3 rounded-3 border-0 bg-light shadow-sm">
                             <h6 class="fw-bold mb-2">{{ item.headline }}</h6>
                             <div class="d-flex justify-content-between align-items-center">
                                 <span class="badge {% if item.impact > 0 %}bg-success{% else %}bg-danger{% endif %} rounded-pill">
-                                    {{ "+" if item.impact > 0 }}{{ item.impact }}% Impact
+                                    {{ "+" if item.impact > 0 }}{{ item.impact }}% Impact ({{ item.symbol }})
                                 </span>
                                 <small class="text-muted fst-italic fw-bold">Live</small>
                             </div>
@@ -184,7 +184,59 @@
         }
     }
 
+    async function updateNews() {
+        console.log("🔄 News check initiated...");
+        try {
+            // 1. CACHE BUSTING: Added '?t=' + Date.now() 
+            // This forces the browser to get fresh data from the server every time.
+            const response = await fetch('/api/news?t=' + Date.now());
+            const newsItems = await response.json();
+            const container = document.getElementById('news-container');
+
+            if (!newsItems || newsItems.length === 0) {
+                console.warn("⚠️ No news items found in database.");
+                return;
+            }
+
+            container.innerHTML = ''; // Clear old news
+
+            newsItems.forEach(item => {
+                const impactColor = item.impact > 0 ? 'bg-success' : 'bg-danger';
+                const impactSign = item.impact > 0 ? '+' : '';
+                
+                const newsHtml = `
+                    <div class="p-3 rounded-3 border-0 bg-light shadow-sm animate__animated animate__fadeIn">
+                        <h6 class="fw-bold mb-2">${item.headline}</h6>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="badge ${impactColor} rounded-pill">
+                                ${impactSign}${item.impact}% Impact (${item.symbol})
+                            </span>
+                            <small class="text-muted fst-italic fw-bold">Live</small>
+                        </div>
+                    </div>`;
+                container.insertAdjacentHTML('beforeend', newsHtml);
+            });
+
+            console.log("✅ News updated. First headline received:", newsItems[0].headline);
+
+        } catch (error) {
+            console.error("❌ Error updating news:", error);
+        } finally {
+            // 2. THE TIMER SAFETY NET
+            // Moving this to 'finally' ensures that even if the server crashes, 
+            // the browser will try again in a few minutes.
+            
+            const baseDelay = 5 * 60 * 1000; // 5 mins
+            const jitter = (Math.random() * 2 - 1) * (5 * 60 * 1000); // +/- 5 mins
+            const finalDelay = Math.max(30000, baseDelay + jitter); // Never faster than 30s
+
+            console.log(`⏱️ Next news update scheduled in ${Math.round(finalDelay/1000)}s`);
+            setTimeout(updateNews, finalDelay);
+        }
+    }
+
     // 3. Run it immediately on page load, then set the 5-second interval
+    updateNews();
     updatePrices();
     setInterval(updatePrices, 5000);
 </script>
