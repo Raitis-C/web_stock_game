@@ -165,7 +165,7 @@ def dashboard():
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     query = """
-        SELECT n.headline, n.effect as impact, s.symbol 
+        SELECT n.headline, n.effect as impact, s.symbol, ne.triggered_at 
         FROM news_events ne
         JOIN News n ON ne.news_id = n.id
         JOIN stocks s ON n.stock_id = s.id
@@ -201,7 +201,7 @@ def get_news_api():
         
         # We query the new 'news_events' table to see what actually happened
         query = """
-            SELECT n.headline, n.effect as impact, s.symbol 
+            SELECT n.headline, n.effect as impact, s.symbol, ne.triggered_at 
             FROM news_events ne
             JOIN News n ON ne.news_id = n.id
             JOIN stocks s ON n.stock_id = s.id

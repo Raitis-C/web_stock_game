@@ -89,6 +89,22 @@
 </div>
 
 <script>
+    function formatTimeAgo(timestamp) {
+        if (!timestamp) return "Just now";
+        
+        // SQLite timestamps are UTC. This handles the conversion.
+        const eventTime = new Date(timestamp + "Z"); 
+        const now = new Date();
+        const diffInSeconds = Math.floor((now - eventTime) / 1000);
+
+        if (diffInSeconds < 60) {
+            return "Just now";
+        }
+
+        const diffInMinutes = Math.floor(diffInSeconds / 60);
+        return `${diffInMinutes} min. ago`;
+    }
+    
     // 1. The new function that actually draws the chart
     async function renderStockChart(symbol, isPositive) {
         try {
@@ -192,12 +208,14 @@
 
             if (!newsItems || newsItems.length === 0) return;
 
-            // Clear the container and rebuild it with the exact history from the server
             container.innerHTML = ''; 
             
             newsItems.forEach(item => {
                 const impactColor = item.impact > 0 ? 'bg-success' : 'bg-danger';
                 const impactSign = item.impact > 0 ? '+' : '';
+                
+                // Use our new helper function here
+                const timeLabel = formatTimeAgo(item.triggered_at);
                 
                 const newsHtml = `
                     <div class="p-3 rounded-3 border-0 bg-light shadow-sm mb-3 animate__animated animate__fadeIn">
@@ -206,7 +224,7 @@
                             <span class="badge ${impactColor} rounded-pill">
                                 ${impactSign}${item.impact}% Impact (${item.symbol})
                             </span>
-                            <small class="text-muted fst-italic fw-bold">Live</small>
+                            <small class="text-muted fst-italic fw-bold">${timeLabel}</small>
                         </div>
                     </div>`;
                 container.insertAdjacentHTML('beforeend', newsHtml);
