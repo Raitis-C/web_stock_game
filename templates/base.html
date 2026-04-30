@@ -29,11 +29,19 @@
                     <li class="nav-item"><a class="nav-link" href="#">Leaderboard</a></li>
                 </ul>
                 
-                <div class="d-flex align-items-center">
-                    <span class="badge bg-warning text-dark fs-6 p-2 px-3 rounded-3 shadow-sm">
-                        <i class="bi bi-wallet2 me-1"></i> Balance: $10,000
-                    </span>
+                {% if user %}
+                <div class="d-flex align-items-center gap-3">
+                    <span class="text-muted small fw-bold">HELLO, {{ session.username }}</span>
+                    <div class="btn btn-warning fw-bold rounded-pill shadow-sm py-2 px-4">
+                        Balance: ${{ "{:,.2f}".format(user.balance) }}
+                    </div>
+                    <a href="{{ url_for('logout') }}" class="btn btn-outline-danger btn-sm rounded-pill">
+                        Logout
+                    </a>
                 </div>
+                {% else %}
+                    <a href="{{ url_for('login') }}" class="btn btn-outline-dark fw-bold rounded-pill">Login</a>
+                {% endif %}
             </div>
         </div>
     </nav>

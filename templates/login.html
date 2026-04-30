@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container d-flex justify-content-center align-items-center" style="min-height: 80vh;">
+    <div class="card shadow-lg border-0 rounded-4" style="width: 100%; max-width: 400px;">
+        <div class="card-body p-5">
+            <h2 class="fw-bold text-center mb-4 text-uppercase">
+                {% if register %}Join the Fire{% else %}Dumpster Login{% endif %}
+            </h2>
+
+            <!-- Flash Messages for Errors -->
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category }} small py-2">{{ message }}</div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+
+            <form action="{% if register %}{{ url_for('register') }}{% else %}{{ url_for('login') }}{% endif %}" method="POST">
+                <div class="mb-3">
+                    <label class="form-label small fw-bold text-muted text-uppercase">Username</label>
+                    <input type="text" name="username" class="form-control form-control-lg bg-light border-0" required>
+                </div>
+                <div class="mb-4">
+                    <label class="form-label small fw-bold text-muted text-uppercase">Password</label>
+                    <input type="password" name="password" class="form-control form-control-lg bg-light border-0" required>
+                </div>
+                <button type="submit" class="btn btn-dark w-100 btn-lg rounded-3 mb-3">
+                    {% if register %}Create Account{% else %}Sign In{% endif %}
+                </button>
+            </form>
+
+            <div class="text-center">
+                {% if register %}
+                    <p class="small text-muted mb-0">Already have an account? <a href="{{ url_for('login') }}" class="text-dark fw-bold">Login</a></p>
+                {% else %}
+                    <p class="small text-muted mb-0">New to the dumpster? <a href="{{ url_for('register') }}" class="text-dark fw-bold">Register</a></p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

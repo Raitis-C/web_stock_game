@@ -3,9 +3,11 @@ import sqlite3
 import random
 import time
 import threading
-from flask import Flask, render_template, jsonify
+from flask import Flask, render_template, jsonify, request, session, redirect, url_for, flash
+from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
+app.secret_key = 'stock_game_ultra_secret_key'
 DB_PATH = Path("stock_game_db.db")
 
 
@@ -158,12 +160,18 @@ def get_db_news(limit=3):
 
 @app.route('/')
 def dashboard():
+    # 1. Protect the route: if not logged in, go to login page
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+
     all_stocks = get_stocks_with_growth()
     trending = sorted(all_stocks, key=lambda x: x['change_percent'], reverse=True)[:3]
 
-    # Fetch the 3 most recently TRIGGERED news items from the server log
+    # 2. Get current user's actual balance
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
+    user_data = conn.execute("SELECT balance FROM users WHERE id = ?", (session['user_id'],)).fetchone()
+    
     query = """
         SELECT n.headline, n.effect as impact, s.symbol, ne.triggered_at 
         FROM news_events ne
@@ -178,7 +186,8 @@ def dashboard():
     return render_template('dashboard.html', 
                            stocks=all_stocks, 
                            trending=trending, 
-                           news=news)
+                           news=news,
+                           user=user_data) # Send user data to template
 
 @app.route('/api/prices')
 def get_prices():
@@ -244,6 +253,51 @@ def get_stock_history(symbol):
     prices = [row['price'] for row in history]
     
     return jsonify({"prices": prices})
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        username = request.form.get('username')
+        password = request.form.get('password')
+        
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        user = conn.execute("SELECT * FROM users WHERE username = ?", (username,)).fetchone()
+        conn.close()
+
+        if user and check_password_hash(user['password'], password):
+            session['user_id'] = user['id']
+            session['username'] = user['username']
+            return redirect(url_for('dashboard'))
+        
+        flash("Invalid username or password", "danger")
+    return render_template('login.html', user=None)
+
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    if request.method == 'POST':
+        username = request.form.get('username')
+        password = request.form.get('password')
+        hashed_pw = generate_password_hash(password)
+
+        try:
+            conn = sqlite3.connect(DB_PATH)
+            conn.execute("INSERT INTO users (username, password, balance) VALUES (?, ?, ?)", 
+                         (username, hashed_pw, 10000.0))
+            conn.commit()
+            conn.close()
+            flash("Account created! Please login.", "success")
+            return redirect(url_for('login'))
+        except sqlite3.IntegrityError:
+            flash("Username already exists", "danger")
+            
+    return render_template('login.html', register=True, user=None)
+
+@app.route('/logout')
+def logout():
+    session.clear()
+    return redirect(url_for('login'))
+
 
 if __name__ == "__main__":
     init_db()
