@@ -5,9 +5,14 @@ import time
 import threading
 from flask import Flask, render_template, jsonify, request, session, redirect, url_for, flash
 from werkzeug.security import generate_password_hash, check_password_hash
+import os
+from dotenv import load_dotenv
+
+
+load_dotenv()
 
 app = Flask(__name__)
-app.secret_key = 'stock_game_ultra_secret_key'
+app.secret_key = os.getenv('FLASK_SECRET_KEY')
 DB_PATH = Path("stock_game_db.db")
 
 
