@@ -158,20 +158,26 @@ def get_db_news(limit=3):
         print(f"❌ Error fetching news: {e}")
         return []
 
+
+@app.context_processor
+def inject_user():
+    # This makes 'user' available in EVERY .html file automatically
+    if 'user_id' in session:
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        user = conn.execute("SELECT * FROM users WHERE id = ?", (session['user_id'],)).fetchone()
+        conn.close()
+        return dict(user=user)
+    return dict(user=None)
+
 @app.route('/')
 def dashboard():
-    # 1. Protect the route: if not logged in, go to login page
-    if 'user_id' not in session:
-        return redirect(url_for('login'))
-
+    # REMOVED the login redirect - now everyone can see this!
     all_stocks = get_stocks_with_growth()
     trending = sorted(all_stocks, key=lambda x: x['change_percent'], reverse=True)[:3]
 
-    # 2. Get current user's actual balance
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
-    user_data = conn.execute("SELECT balance FROM users WHERE id = ?", (session['user_id'],)).fetchone()
-    
     query = """
         SELECT n.headline, n.effect as impact, s.symbol, ne.triggered_at 
         FROM news_events ne
@@ -183,11 +189,7 @@ def dashboard():
     news = [dict(row) for row in conn.execute(query).fetchall()]
     conn.close()
 
-    return render_template('dashboard.html', 
-                           stocks=all_stocks, 
-                           trending=trending, 
-                           news=news,
-                           user=user_data) # Send user data to template
+    return render_template('dashboard.html', stocks=all_stocks, trending=trending, news=news)
 
 @app.route('/api/prices')
 def get_prices():
