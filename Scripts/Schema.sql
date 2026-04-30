@@ -53,3 +53,12 @@ CREATE TABLE price_history (
 	"timestamp" DATETIME DEFAULT (CURRENT_TIMESTAMP),
 	CONSTRAINT price_history_stocks_FK FOREIGN KEY (stock_id) REFERENCES stocks(id) ON DELETE CASCADE ON UPDATE CASCADE
 );
+
+
+-- Tracks which news events have actually been triggered by the server
+CREATE TABLE news_events (
+    id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    news_id INTEGER NOT NULL,
+    triggered_at DATETIME DEFAULT (CURRENT_TIMESTAMP),
+    CONSTRAINT news_events_news_FK FOREIGN KEY (news_id) REFERENCES News(id) ON DELETE CASCADE
+);	

@@ -45,47 +45,62 @@ def init_db():
                 print(f"⚠️ Cleanup failed: {cleanup_err}")
 
 def live_price_updates():
-    """This function runs in the background forever, updating prices."""
+    """Background engine: handles 5-second wiggles AND random news events."""
+    # Set the first news timer: 5 mins +/- 5 mins (min 30 seconds)
+    next_news_time = time.time() + max(30, (5 * 60) + random.uniform(-300, 300))
+    
     while True:
         try:
-            # 1. Connect to the DB
             conn = sqlite3.connect(DB_PATH)
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
-
-            # IMPORTANT: This makes sure your ON DELETE CASCADE actually works!
             cursor.execute("PRAGMA foreign_keys = ON;")
 
-            # 2. Get all stocks
+            # --- 1. THE 5-SECOND PRICE WIGGLE (Your original logic) ---
             stocks = cursor.execute("SELECT id, current_price, volatility FROM stocks").fetchall()
-
             for stock in stocks:
-                # 3. Calculate the 'Wiggle'
-                # Formula: current + random(-vol, +vol)
                 vol = stock['volatility']
                 change = random.uniform(-vol, vol)
-                
-                # Math: New price cannot be less than $0.01
                 new_price = round(max(0.01, stock['current_price'] + change), 2)
-
-                # 4. Save back to DB
-                cursor.execute(
-                    "UPDATE stocks SET current_price = ? WHERE id = ?", 
-                    (new_price, stock['id'])
-                )
-
-                # 5. Log price history
+                
+                cursor.execute("UPDATE stocks SET current_price = ? WHERE id = ?", (new_price, stock['id']))
                 cursor.execute("INSERT INTO price_history (stock_id, price) VALUES (?, ?)", (stock['id'], new_price))
+
+            # --- 2. SERVER-SIDE NEWS LOGIC ---
+            current_time = time.time()
+            if current_time >= next_news_time:
+                # Grab one random piece of news
+                news_item = cursor.execute("""
+                    SELECT n.id, n.effect, s.id as stock_id, s.current_price, s.symbol, n.headline
+                    FROM News n
+                    JOIN stocks s ON n.stock_id = s.id
+                    ORDER BY RANDOM() LIMIT 1
+                """).fetchone()
+
+                if news_item:
+                    # Apply the impact mathematically
+                    multiplier = 1 + (news_item['effect'] / 100.0)
+                    spiked_price = round(max(0.01, news_item['current_price'] * multiplier), 2)
+
+                    # Update the stock price and log the huge jump in history
+                    cursor.execute("UPDATE stocks SET current_price = ? WHERE id = ?", (spiked_price, news_item['stock_id']))
+                    cursor.execute("INSERT INTO price_history (stock_id, price) VALUES (?, ?)", (news_item['stock_id'], spiked_price))
+                    
+                    # Record that this news actually happened!
+                    cursor.execute("INSERT INTO news_events (news_id) VALUES (?)", (news_item['id'],))
+                    
+                    print(f"🚨 BREAKING NEWS: {news_item['headline']} applied to {news_item['symbol']}")
+
+                # Reset the timer for the next news event (5 mins +/- 5 mins)
+                next_news_time = time.time() + max(30, (5 * 60) + random.uniform(-300, 300))
 
             conn.commit()
             conn.close()
             
-            # print(f"💹 Market Tick: Prices updated.") # Optional: Unmute for debugging
-            
         except Exception as e:
-            print(f"❌ live_price_updates Error: {e}")
+            print(f"❌ Engine Error: {e}")
 
-        # 5. Wait for 5 seconds
+        # Wait for 5 seconds before next tick
         time.sleep(5)
 
 def get_stocks_with_growth():
@@ -144,63 +159,61 @@ def get_db_news(limit=3):
 @app.route('/')
 def dashboard():
     all_stocks = get_stocks_with_growth()
-    # Sort for the trending section
     trending = sorted(all_stocks, key=lambda x: x['change_percent'], reverse=True)[:3]
 
-    # mock_news = [
-    #     {'headline': 'Apple releases iToster, bread price skyrockets', 'impact': 5.2},
-    #     {'headline': 'CEO of popular tech company admits he just guesses what buttons do', 'impact': -8.4},
-    #     {'headline': 'Scientists discover new color, patent pending', 'impact': 1.1}
-    # ]
-    
-    news = get_db_news()
+    # Fetch the 3 most recently TRIGGERED news items from the server log
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    query = """
+        SELECT n.headline, n.effect as impact, s.symbol 
+        FROM news_events ne
+        JOIN News n ON ne.news_id = n.id
+        JOIN stocks s ON n.stock_id = s.id
+        ORDER BY ne.triggered_at DESC
+        LIMIT 3
+    """
+    news = [dict(row) for row in conn.execute(query).fetchall()]
+    conn.close()
 
     return render_template('dashboard.html', 
                            stocks=all_stocks, 
                            trending=trending, 
                            news=news)
 
-
 @app.route('/api/prices')
 def get_prices():
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    
-    # NEW SQL: Same logic for the live API
-    query = """
-        SELECT 
-            s.symbol, 
-            s.current_price, 
-            s.opening_price,
-            (
-                SELECT price 
-                FROM price_history ph 
-                WHERE ph.stock_id = s.id 
-                  AND date(ph.timestamp, 'localtime') = date('now', 'localtime')
-                ORDER BY ph.timestamp ASC 
-                LIMIT 1
-            ) as today_open_price
-        FROM stocks s
-    """
-    stocks = conn.execute(query).fetchall()
-    conn.close()
-    
+    all_stocks = get_stocks_with_growth()
     stock_list = []
-    for stock in stocks:
-        current = stock['current_price']
-        # Same fallback logic here
-        opening = stock['today_open_price'] if stock['today_open_price'] is not None else stock['opening_price']
-        
-        growth = ((current - opening) / opening * 100) if opening != 0 else 0
-        
+    for s in all_stocks:
         stock_list.append({
-            "symbol": stock['symbol'],
-            "price": round(current, 2),
-            "growth": round(growth, 2)
+            "symbol": s['symbol'],
+            "price": s['current_price'],
+            "growth": s['change_percent']
         })
-    
-    sorted_stocks = sorted(stock_list, key=lambda x: x['growth'], reverse=True)
-    return jsonify(sorted_stocks)
+    return jsonify(sorted(stock_list, key=lambda x: x['growth'], reverse=True))
+
+@app.route('/api/news')
+def get_news_api():
+    """API endpoint for the frontend to fetch the 3 most recently triggered news events."""
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        
+        # We query the new 'news_events' table to see what actually happened
+        query = """
+            SELECT n.headline, n.effect as impact, s.symbol 
+            FROM news_events ne
+            JOIN News n ON ne.news_id = n.id
+            JOIN stocks s ON n.stock_id = s.id
+            ORDER BY ne.triggered_at DESC
+            LIMIT 3
+        """
+        news_rows = conn.execute(query).fetchall()
+        conn.close()
+        return jsonify([dict(row) for row in news_rows])
+    except Exception as e:
+        print(f"❌ Error fetching news: {e}")
+        return jsonify([])
 
 @app.route('/api/history/<symbol>')
 def get_stock_history(symbol):
@@ -231,11 +244,6 @@ def get_stock_history(symbol):
     prices = [row['price'] for row in history]
     
     return jsonify({"prices": prices})
-
-@app.route('/api/news')
-def get_news_api():
-    """API endpoint for the frontend to fetch fresh news."""
-    return jsonify(get_db_news())
 
 if __name__ == "__main__":
     init_db()
