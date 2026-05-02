@@ -27,6 +27,7 @@ def init_db():
     try:
         with sqlite3.connect(DB_PATH) as connection:
             connection.execute("PRAGMA foreign_keys = ON;")
+            connection.execute("PRAGMA journal_mode=WAL;")
             
             # Using absolute paths relative to the app root is often safer in Flask
             schema_file = Path("Scripts/schema.sql") 
