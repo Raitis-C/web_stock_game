@@ -336,4 +336,4 @@ if __name__ == "__main__":
     thread = threading.Thread(target=live_price_updates, daemon=True)
     thread.start()
 
-    app.run(debug=True)
+    app.run()
