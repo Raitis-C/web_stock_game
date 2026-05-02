@@ -259,30 +259,22 @@ def get_stock_history(symbol):
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     
-    # NEW QUERY: 
-    # 1. Filters by TODAY
-    # 2. Uses 'row_number' to only take every 5th or 10th record (keeps chart fast)
+    # Query logic:
+    # 1. Joins price_history with stocks to find the right symbol.
+    # 2. Filters for data within the last 24 hours using SQLite's datetime function.
     query = """
-        SELECT price, timestamp FROM (
-            SELECT ph.price, ph.timestamp, 
-                   ROW_NUMBER() OVER (ORDER BY ph.timestamp ASC) as row_num
-            FROM price_history ph
-            JOIN stocks s ON ph.stock_id = s.id
-            WHERE s.symbol = ? 
-              AND date(ph.timestamp, 'localtime') = date('now', 'localtime')
-        )
-        WHERE row_num % 5 = 0 OR row_num = 1
-        ORDER BY timestamp ASC
+        SELECT price, timestamp FROM price_history ph
+        JOIN stocks s ON ph.stock_id = s.id
+        WHERE s.symbol = ? 
+          AND ph.timestamp >= datetime('now', '-24 hours')
+        ORDER BY ph.timestamp ASC
     """
     
     history = conn.execute(query, (symbol,)).fetchall()
     conn.close()
-
-    # If the app just started and there's no history for today yet, 
-    # we return an empty list so the chart doesn't crash.
-    prices = [row['price'] for row in history]
     
-    return jsonify({"prices": prices})
+    # Change "line_data" to "history" so it's a universal name
+    return jsonify({"history": [{"x": row['timestamp'], "y": row['price']} for row in history]})
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():

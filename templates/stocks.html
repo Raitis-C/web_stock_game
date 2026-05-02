@@ -87,7 +87,7 @@
             const data = await response.json();
 
             const options = {
-                series: [{ data: data.prices }],
+                series: [{ data: data.history }],
                 chart: {
                     type: 'line',
                     height: 60, // Matches the height in the HTML style

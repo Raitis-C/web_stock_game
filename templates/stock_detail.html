@@ -64,38 +64,37 @@
         const data = await response.json();
 
         const options = {
-            series: [{ name: 'Price', data: data.prices }],
+            // Use the new line_data list from our API
+            series: [{ name: 'Price', data: data.history }],
             chart: {
                 type: 'area',
                 height: 400,
-                zoom: { enabled: false },
+                animations: { enabled: false }, // Keeps live updates smooth
                 toolbar: { show: false }
             },
-            dataLabels: { enabled: false },
-            stroke: { curve: 'smooth', width: 3 },
-            // Adding back the grid lines and legend as requested
-            grid: {
-                show: true,
-                borderColor: '#e7e7e7',
-                xaxis: { lines: { show: true } }
-            },
             xaxis: {
-                labels: { show: false } // Hide timestamps for now to keep it clean
+                // FIX: Tells the chart to parse timestamps instead of showing IDs[cite: 4]
+                type: 'datetime', 
+                labels: {
+                    datetimeUTC: false, // Displays in user's local time
+                    style: { fontWeight: 'bold' }
+                }
             },
             yaxis: {
                 labels: {
                     formatter: (val) => `$${val.toFixed(2)}`
                 }
             },
-            colors: ['#0d6efd'],
-            fill: {
-                type: 'gradient',
-                gradient: { shadeIntensity: 1, opacityFrom: 0.7, opacityTo: 0.3 }
-            }
+            stroke: { curve: 'smooth', width: 3 },
+            grid: { show: true, borderColor: '#f1f1f1' }
         };
 
-        mainChart = new ApexCharts(document.querySelector("#main-stock-chart"), options);
-        mainChart.render();
+        if (mainChart) {
+            mainChart.updateSeries([{ data: data.history }]);
+        } else {
+            mainChart = new ApexCharts(document.querySelector("#main-stock-chart"), options);
+            mainChart.render();
+        }
     }
 
     // Interval Functionality (Placeholder logic for your intervals)
