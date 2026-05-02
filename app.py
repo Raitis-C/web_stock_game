@@ -196,6 +196,16 @@ def dashboard():
 
     return render_template('dashboard.html', stocks=all_stocks, trending=trending, news=news)
 
+@app.route('/stocks')
+def stocks():
+    # Fetch all stocks using your existing function
+    all_stocks = get_stocks_with_growth()
+    
+    # Sort them alphabetically by symbol for easier browsing
+    all_stocks = sorted(all_stocks, key=lambda x: x['symbol'])
+    
+    return render_template('stocks.html', stocks=all_stocks)
+
 @app.route('/api/prices')
 def get_prices():
     all_stocks = get_stocks_with_growth()

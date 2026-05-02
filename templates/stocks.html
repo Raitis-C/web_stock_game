@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% block title %}Stock Browser - Dumpster Fire Trades{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col">
+            <h1 class="display-6 fw-bold text-uppercase">Stock Browser</h1>
+            <p class="text-muted fw-bold">Find your next big win (or catastrophic loss).</p>
+        </div>
+    </div>
+
+    <!-- Search Bar -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <input type="text" id="searchInput" class="form-control form-control-lg bg-white border-0 shadow-sm rounded-pill px-4 fw-bold" placeholder="🔍 Search by symbol...">
+        </div>
+    </div>
+
+    <!-- Stock Grid -->
+    <div class="row g-4" id="stockGrid">
+        {% for stock in stocks %}
+        <div class="col-md-4 col-sm-6 stock-card-wrapper" data-symbol="{{ stock.symbol }}">
+            <!-- This link is prepped for your next feature! -->
+            <a href="/stock/{{ stock.symbol }}" class="text-decoration-none text-dark">
+                <div class="card stock-card-custom shadow-sm border-0 rounded-4 h-100">
+                    <div class="card-body p-4 transition-all">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <div class="d-flex align-items-center gap-2">
+                                <span class="fw-bold fs-4">{{ stock.symbol }}</span>
+                                <span class="badge bg-light text-dark border small">STK</span>
+                            </div>
+                            <div class="fs-6 fw-bold {% if stock.change_percent > 0 %}text-success{% elif stock.change_percent < 0 %}text-danger{% else %}text-muted{% endif %}" id="growth-{{ stock.symbol }}">
+                                {% if stock.change_percent > 0 %}▲{% elif stock.change_percent < 0 %}▼{% else %}▬{% endif %} {{ stock.change_percent|abs }}%
+                            </div>
+                        </div>
+                        
+                        <div class="fs-2 fw-bold mb-1">
+                            $<span id="price-{{ stock.symbol }}">{{ stock.current_price }}</span>
+                        </div>
+                        <small class="text-muted fw-bold"><i class="bi bi-box-arrow-in-up-right"></i> View Details & Trade</small>
+                    </div>
+                </div>
+            </a>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<script>
+    // 1. Instant Search Filter
+    document.getElementById('searchInput').addEventListener('keyup', function() {
+        let filter = this.value.toUpperCase();
+        let cards = document.querySelectorAll('.stock-card-wrapper');
+        
+        cards.forEach(card => {
+            let symbol = card.getAttribute('data-symbol');
+            if (symbol.includes(filter)) {
+                card.style.display = ""; // Show
+            } else {
+                card.style.display = "none"; // Hide
+            }
+        });
+    });
+
+    // 2. Keep Prices Live (Uses your existing API!)
+    setInterval(async () => {
+        try {
+            const response = await fetch('/api/prices');
+            const liveStocks = await response.json();
+            
+            liveStocks.forEach(stock => {
+                // Update the price text
+                const priceEl = document.getElementById(`price-${stock.symbol}`);
+                if (priceEl) {
+                    priceEl.innerText = stock.price.toFixed(2);
+                }
+                
+                // Update the growth text and colors
+                const growthEl = document.getElementById(`growth-${stock.symbol}`);
+                if (growthEl) {
+                    const arrow = stock.growth > 0 ? '▲' : stock.growth < 0 ? '▼' : '▬';
+                    const colorClass = stock.growth > 0 ? 'text-success' : stock.growth < 0 ? 'text-danger' : 'text-muted';
+                    
+                    growthEl.className = `fs-6 fw-bold ${colorClass}`;
+                    growthEl.innerText = `${arrow} ${Math.abs(stock.growth).toFixed(2)}%`;
+                }
+            });
+        } catch (error) {
+            console.error("Error fetching live prices:", error);
+        }
+    }, 5000);
+</script>
+{% endblock %}
