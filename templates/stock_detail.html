@@ -71,50 +71,52 @@
     let currentChartType = 'area';
     const symbol = "{{ stock.symbol }}";
 
-    async function initChart() {
+    async function initChart(type = 'area') {
         const response = await fetch(`/api/history/${symbol}`);
         const data = await response.json();
 
+        // Pick the right data based on the requested type
+        const chartData = (type === 'candlestick') ? data.candle : data.line;
+
         const options = {
-            // Use the new line_data list from our API
-            series: [{ name: 'Price', data: data.history }],
+            series: [{ 
+                name: type === 'candlestick' ? 'Market Data' : 'Price', 
+                data: chartData 
+            }],
             chart: {
-                type: 'area',
+                type: type, // This MUST be 'area' or 'candlestick'
                 height: 400,
-                animations: { enabled: false }, // Keeps live updates smooth
+                animations: { 
+                    enabled: true, 
+                    speed: 800 
+                },
                 toolbar: { show: false }
             },
-            dataLabels: {
-                enabled: false
-            },
-            tooltip: {
-                x: {
-                    format: 'HH:mm:ss' // Shows Hours:Minutes:Seconds
-                }
-            },
+            dataLabels: { enabled: false },
             xaxis: {
-                // FIX: Tells the chart to parse timestamps instead of showing IDs[cite: 4]
-                type: 'datetime', 
+                type: 'datetime',
                 labels: {
-                    datetimeUTC: false, // Displays in user's local time
+                    datetimeUTC: false,
                     style: { fontWeight: 'bold' }
                 }
             },
-            yaxis: {
-                labels: {
-                    formatter: (val) => `$${val.toFixed(2)}`
-                }
+            tooltip: {
+                x: { format: 'HH:mm:ss' }
             },
-            stroke: { curve: 'smooth', width: 3 },
-            grid: { show: true, borderColor: '#f1f1f1' }
+            // Candlesticks shouldn't have "smooth" curves
+            stroke: { 
+                curve: type === 'area' ? 'smooth' : 'straight',
+                width: type === 'area' ? 3 : 1
+            }
         };
 
+        // IMPORTANT: If a chart already exists, destroy it so the new type can render[cite: 2]
         if (mainChart) {
-            mainChart.updateSeries([{ data: data.history }]);
-        } else {
-            mainChart = new ApexCharts(document.querySelector("#main-stock-chart"), options);
-            mainChart.render();
+            mainChart.destroy();
         }
+        
+        mainChart = new ApexCharts(document.querySelector("#main-stock-chart"), options);
+        mainChart.render();
     }
 
     function switchChart(newType) {
@@ -143,7 +145,7 @@
     // Live Price & Chart Update Engine
     setInterval(async () => {
         try {
-            // 1. Update the Text Price (Your existing logic)
+            // 1. Update the Text Price[cite: 2]
             const priceRes = await fetch('/api/prices');
             const stocks = await priceRes.json();
             const thisStock = stocks.find(s => s.symbol === symbol);
@@ -155,16 +157,24 @@
             const histRes = await fetch(`/api/history/${symbol}`);
             const data = await histRes.json();
 
-            // Fallback logic: Use .line if it exists, otherwise use .history
+            // 3. Determine the correct dataset and series name
             let newData;
+            let newName;
+            
             if (currentChartType === 'candlestick') {
                 newData = data.candle || [];
+                newName = 'Market OHLC'; // Candlesticks prefer a different series identity
             } else {
                 newData = data.line || data.history; 
+                newName = 'Price';
             }
 
-            if (mainChart && newData) {
-                mainChart.updateSeries([{ data: newData }]);
+            if (mainChart && newData && newData.length > 0) {
+                // updateSeries should include the name to keep the chart state consistent
+                mainChart.updateSeries([{ 
+                    name: newName, 
+                    data: newData 
+                }]);
             }
         } catch (error) {
             console.error("Live update failed:", error);

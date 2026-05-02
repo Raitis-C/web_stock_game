@@ -7,6 +7,7 @@ from flask import Flask, render_template, jsonify, request, session, redirect, u
 from werkzeug.security import generate_password_hash, check_password_hash
 import os
 from dotenv import load_dotenv
+from datetime import datetime, timedelta
 
 
 load_dotenv()
@@ -254,14 +255,14 @@ def get_news_api():
         print(f"❌ Error fetching news: {e}")
         return jsonify([])
 
+from datetime import datetime, timedelta
+
 @app.route('/api/history/<symbol>')
 def get_stock_history(symbol):
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     
-    # Query logic:
-    # 1. Joins price_history with stocks to find the right symbol.
-    # 2. Filters for data within the last 24 hours using SQLite's datetime function.
+    # 1. Fetch the raw 24h data
     query = """
         SELECT price, timestamp FROM price_history ph
         JOIN stocks s ON ph.stock_id = s.id
@@ -269,18 +270,41 @@ def get_stock_history(symbol):
           AND ph.timestamp >= datetime('now', '-24 hours')
         ORDER BY ph.timestamp ASC
     """
-    
     history = conn.execute(query, (symbol,)).fetchall()
     conn.close()
-    
-    # We create the list once
-    points = [{"x": row['timestamp'], "y": row['price']} for row in history]
-    
-    # Return BOTH keys so the detailed page doesn't break
+
+    # 2. Format Line Data
+    line_points = [{"x": row['timestamp'], "y": row['price']} for row in history]
+
+    # 3. Generate Candlestick Data (15-minute buckets)
+    candles = []
+    if history:
+        # Group raw data by 15-minute intervals
+        buckets = {}
+        for row in history:
+            # Round the timestamp down to the nearest 15 minutes
+            dt = datetime.strptime(row['timestamp'], '%Y-%m-%d %H:%M:%S')
+            bucket_time = dt.replace(minute=(dt.minute // 15) * 15, second=0).strftime('%Y-%m-%d %H:%M:%S')
+            
+            if bucket_time not in buckets:
+                buckets[bucket_time] = []
+            buckets[bucket_time].append(row['price'])
+
+        for time_key, prices in buckets.items():
+            candles.append({
+                "x": time_key,
+                "y": [
+                    prices[0],             # Open
+                    max(prices),           # High
+                    min(prices),           # Low
+                    prices[-1]             # Close
+                ]
+            })
+
     return jsonify({
-        "history": points, # For the sparklines
-        "line": points,    # For the detailed line graph
-        "candle": []       # Placeholder to prevent 'undefined' errors
+        "history": line_points,
+        "line": line_points,
+        "candle": candles # Now this contains actual data!
     })
 
 @app.route('/login', methods=['GET', 'POST'])
