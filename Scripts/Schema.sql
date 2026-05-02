@@ -54,6 +54,9 @@ CREATE TABLE price_history (
 	CONSTRAINT price_history_stocks_FK FOREIGN KEY (stock_id) REFERENCES stocks(id) ON DELETE CASCADE ON UPDATE CASCADE
 );
 
+-- price_history index
+CREATE INDEX idx_price_history_stock_timestamp 
+    ON price_history (stock_id, timestamp);
 
 -- Tracks which news events have actually been triggered by the server
 CREATE TABLE news_events (
