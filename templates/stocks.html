@@ -87,18 +87,15 @@
             const data = await response.json();
 
             const options = {
-                series: [{ data: data.history }],
+                // FIX: Extract only the 'y' values for the sparkline
+                series: [{ data: data.history.map(point => point.y) }],
                 chart: {
                     type: 'line',
-                    height: 60, // Matches the height in the HTML style
+                    height: 60,
                     sparkline: { enabled: true },
                     animations: { enabled: false }
                 },
-                stroke: {
-                    curve: 'smooth',
-                    width: 2
-                },
-                // Use your colors or stick to Bootstrap green/red
+                stroke: { curve: 'smooth', width: 2 },
                 colors: [isPositive ? '#198754' : '#dc3545'], 
                 tooltip: { enabled: false }
             };
