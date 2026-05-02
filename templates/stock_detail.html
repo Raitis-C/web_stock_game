@@ -10,6 +10,17 @@
             <h2 class="text-muted fw-bold">$<span id="current-price">{{ stock.current_price }}</span></h2>
         </div>
         <div class="col-md-4 text-md-end">
+            <div class="d-flex justify-content-end mb-3">
+                <div class="btn-group shadow-sm">
+                    <button type="button" class="btn btn-outline-primary active" id="btn-line" onclick="switchChart('area')">
+                        Line
+                    </button>
+                    <button type="button" class="btn btn-outline-primary" id="btn-candle" onclick="switchChart('candlestick')">
+                        Candle
+                    </button>
+                </div>
+            </div>
+
             <!-- Removed 1D/1W/1M buttons -->
             <div class="badge bg-danger pulse-animation px-3 py-2 rounded-pill">
                 <i class="bi bi-broadcast"></i> LIVE 24H MARKET
@@ -136,11 +147,15 @@
             const histRes = await fetch(`/api/history/${symbol}`);
             const data = await histRes.json();
 
-            // Feed it 'candle' or 'line' data depending on what button is active
-            const newData = (currentChartType === 'candlestick') ? data.candle : data.line;
+            // Fallback logic: Use .line if it exists, otherwise use .history
+            let newData;
+            if (currentChartType === 'candlestick') {
+                newData = data.candle || [];
+            } else {
+                newData = data.line || data.history; 
+            }
 
-            // Push the new data into the chart WITHOUT reloading the whole page
-            if (mainChart) {
+            if (mainChart && newData) {
                 mainChart.updateSeries([{ data: newData }]);
             }
         } catch (error) {

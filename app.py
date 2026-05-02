@@ -273,8 +273,15 @@ def get_stock_history(symbol):
     history = conn.execute(query, (symbol,)).fetchall()
     conn.close()
     
-    # Change "line_data" to "history" so it's a universal name
-    return jsonify({"history": [{"x": row['timestamp'], "y": row['price']} for row in history]})
+    # We create the list once
+    points = [{"x": row['timestamp'], "y": row['price']} for row in history]
+    
+    # Return BOTH keys so the detailed page doesn't break
+    return jsonify({
+        "history": points, # For the sparklines
+        "line": points,    # For the detailed line graph
+        "candle": []       # Placeholder to prevent 'undefined' errors
+    })
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
