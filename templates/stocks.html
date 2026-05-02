@@ -22,11 +22,13 @@
     <div class="row g-4" id="stockGrid">
         {% for stock in stocks %}
         <div class="col-md-4 col-sm-6 stock-card-wrapper" data-symbol="{{ stock.symbol }}">
-            <!-- This link is prepped for your next feature! -->
             <a href="/stock/{{ stock.symbol }}" class="text-decoration-none text-dark">
-                <div class="card stock-card-custom shadow-sm border-0 rounded-4 h-100">
+                <!-- Added 'position-relative' so we can anchor the chart inside -->
+                <div class="card stock-card-custom shadow-sm border-0 rounded-4 h-100 position-relative overflow-hidden">
                     <div class="card-body p-4 transition-all">
-                        <div class="d-flex justify-content-between align-items-center mb-3">
+                        
+                        <!-- Header Row -->
+                        <div class="d-flex justify-content-between align-items-center mb-1">
                             <div class="d-flex align-items-center gap-2">
                                 <span class="fw-bold fs-4">{{ stock.symbol }}</span>
                                 <span class="badge bg-light text-dark border small">STK</span>
@@ -36,10 +38,21 @@
                             </div>
                         </div>
                         
-                        <div class="fs-2 fw-bold mb-1">
+                        <!-- Price -->
+                        <div class="fs-2 fw-bold mb-3">
                             $<span id="price-{{ stock.symbol }}">{{ stock.current_price }}</span>
                         </div>
-                        <small class="text-muted fw-bold"><i class="bi bi-box-arrow-in-up-right"></i> View Details & Trade</small>
+
+                        <!-- Details Link -->
+                        <small class="text-muted fw-bold">
+                            <i class="bi bi-box-arrow-in-up-right"></i> View Details & Trade
+                        </small>
+
+                        <!-- THE MINI CHART: Pinned to bottom right -->
+                        <div id="mini-chart-{{ stock.symbol }}" 
+                             style="position: absolute; right: 10px; bottom: 10px; width: 120px; height: 60px; pointer-events: none;">
+                        </div>
+                        
                     </div>
                 </div>
             </a>
@@ -48,8 +61,11 @@
     </div>
 </div>
 
+<!-- Load ApexCharts -->
+<script src="https://cdn.jsdelivr.net/npm/apexcharts@5.10.6"></script>
+
 <script>
-    // 1. Instant Search Filter
+    // 1. Instant Search Filter (Your existing code)
     document.getElementById('searchInput').addEventListener('keyup', function() {
         let filter = this.value.toUpperCase();
         let cards = document.querySelectorAll('.stock-card-wrapper');
@@ -57,32 +73,71 @@
         cards.forEach(card => {
             let symbol = card.getAttribute('data-symbol');
             if (symbol.includes(filter)) {
-                card.style.display = ""; // Show
+                card.style.display = "";
             } else {
-                card.style.display = "none"; // Hide
+                card.style.display = "none";
             }
         });
     });
 
-    // 2. Keep Prices Live (Uses your existing API!)
+    // 2. The new Sparkline function
+    async function renderMiniChart(symbol, isPositive) {
+        try {
+            const response = await fetch(`/api/history/${symbol}`);
+            const data = await response.json();
+
+            const options = {
+                series: [{ data: data.prices }],
+                chart: {
+                    type: 'line',
+                    height: 60, // Matches the height in the HTML style
+                    sparkline: { enabled: true },
+                    animations: { enabled: false }
+                },
+                stroke: {
+                    curve: 'smooth',
+                    width: 2
+                },
+                // Use your colors or stick to Bootstrap green/red
+                colors: [isPositive ? '#198754' : '#dc3545'], 
+                tooltip: { enabled: false }
+            };
+
+            const chart = new ApexCharts(document.querySelector(`#mini-chart-${symbol}`), options);
+            chart.render();
+        } catch (error) {
+            console.error(`Error rendering mini chart for ${symbol}:`, error);
+        }
+    }
+
+    // 3. Draw charts when the page loads
+    document.addEventListener('DOMContentLoaded', () => {
+        const cards = document.querySelectorAll('.stock-card-wrapper');
+        
+        cards.forEach(card => {
+            const symbol = card.getAttribute('data-symbol');
+            // Check the color class we rendered in HTML to decide if the line is green/red
+            const growthEl = document.getElementById(`growth-${symbol}`);
+            const isPositive = growthEl.classList.contains('text-success');
+            
+            renderMiniChart(symbol, isPositive);
+        });
+    });
+
+    // 4. Keep Prices Live (Your existing code)
     setInterval(async () => {
         try {
             const response = await fetch('/api/prices');
             const liveStocks = await response.json();
             
             liveStocks.forEach(stock => {
-                // Update the price text
                 const priceEl = document.getElementById(`price-${stock.symbol}`);
-                if (priceEl) {
-                    priceEl.innerText = stock.price.toFixed(2);
-                }
+                if (priceEl) priceEl.innerText = stock.price.toFixed(2);
                 
-                // Update the growth text and colors
                 const growthEl = document.getElementById(`growth-${stock.symbol}`);
                 if (growthEl) {
                     const arrow = stock.growth > 0 ? '▲' : stock.growth < 0 ? '▼' : '▬';
                     const colorClass = stock.growth > 0 ? 'text-success' : stock.growth < 0 ? 'text-danger' : 'text-muted';
-                    
                     growthEl.className = `fs-6 fw-bold ${colorClass}`;
                     growthEl.innerText = `${arrow} ${Math.abs(stock.growth).toFixed(2)}%`;
                 }
