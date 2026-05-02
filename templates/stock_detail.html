@@ -10,11 +10,9 @@
             <h2 class="text-muted fw-bold">$<span id="current-price">{{ stock.current_price }}</span></h2>
         </div>
         <div class="col-md-4 text-md-end">
-            <!-- Time Interval Selector -->
-            <div class="btn-group shadow-sm" role="group">
-                <button type="button" class="btn btn-outline-dark active" onclick="updateChartInterval('1D', this)">1D</button>
-                <button type="button" class="btn btn-outline-dark" onclick="updateChartInterval('1W', this)">1W</button>
-                <button type="button" class="btn btn-outline-dark" onclick="updateChartInterval('1M', this)">1M</button>
+            <!-- Removed 1D/1W/1M buttons -->
+            <div class="badge bg-danger pulse-animation px-3 py-2 rounded-pill">
+                <i class="bi bi-broadcast"></i> LIVE 24H MARKET
             </div>
         </div>
     </div>
