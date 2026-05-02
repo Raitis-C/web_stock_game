@@ -206,6 +206,19 @@ def stocks():
     
     return render_template('stocks.html', stocks=all_stocks)
 
+@app.route('/stock/<symbol>')
+def stock_detail(symbol):
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    stock = conn.execute("SELECT * FROM stocks WHERE symbol = ?", (symbol,)).fetchone()
+    conn.close()
+
+    if not stock:
+        flash("Stock not found!", "danger")
+        return redirect(url_for('dashboard'))
+
+    return render_template('stock_detail.html', stock=dict(stock))
+
 @app.route('/api/prices')
 def get_prices():
     all_stocks = get_stocks_with_growth()

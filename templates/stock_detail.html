@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+{% block title %}{{ stock.symbol }} Details - Dumpster Fire Trades{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <!-- Header -->
+    <div class="row align-items-center mb-4">
+        <div class="col-md-8">
+            <h1 class="display-4 fw-bold mb-0">{{ stock.name }} ({{ stock.symbol }})</h1>
+            <h2 class="text-muted fw-bold">$<span id="current-price">{{ stock.current_price }}</span></h2>
+        </div>
+        <div class="col-md-4 text-md-end">
+            <!-- Time Interval Selector -->
+            <div class="btn-group shadow-sm" role="group">
+                <button type="button" class="btn btn-outline-dark active" onclick="updateChartInterval('1D', this)">1D</button>
+                <button type="button" class="btn btn-outline-dark" onclick="updateChartInterval('1W', this)">1W</button>
+                <button type="button" class="btn btn-outline-dark" onclick="updateChartInterval('1M', this)">1M</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Chart Card -->
+    <div class="card shadow-sm border-0 rounded-4 mb-4">
+        <div class="card-body p-4">
+            <div id="main-stock-chart" style="min-height: 400px;"></div>
+        </div>
+    </div>
+
+    <!-- Trading Section -->
+    <div class="card shadow-lg border-0 rounded-4 bg-white">
+        <div class="card-body p-4">
+            <div class="row align-items-center">
+                <div class="col-md-6">
+                    <h4 class="fw-bold mb-1">Trade {{ stock.symbol }}</h4>
+                    {% if user %}
+                        <p class="text-muted small fw-bold">Buying Power: ${{ "{:,.2f}".format(user.balance) }}</p>
+                    {% else %}
+                        <p class="text-danger small fw-bold"><i class="bi bi-lock-fill"></i> Please login to enable trading.</p>
+                    {% endif %}
+                </div>
+                <div class="col-md-6">
+                    <div class="d-flex gap-3">
+                        <!-- Conditional Buttons based on login status -->
+                        <button class="btn btn-success btn-lg flex-grow-1 fw-bold rounded-3 py-3 shadow-sm" 
+                                {% if not user %} disabled {% endif %}>
+                            BUY {{ stock.symbol }}
+                        </button>
+                        <button class="btn btn-danger btn-lg flex-grow-1 fw-bold rounded-3 py-3 shadow-sm" 
+                                {% if not user %} disabled {% endif %}>
+                            SELL {{ stock.symbol }}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/apexcharts@5.10.6"></script>
+<script>
+    let mainChart;
+    const symbol = "{{ stock.symbol }}";
+
+    async function initChart() {
+        const response = await fetch(`/api/history/${symbol}`);
+        const data = await response.json();
+
+        const options = {
+            series: [{ name: 'Price', data: data.prices }],
+            chart: {
+                type: 'area',
+                height: 400,
+                zoom: { enabled: false },
+                toolbar: { show: false }
+            },
+            dataLabels: { enabled: false },
+            stroke: { curve: 'smooth', width: 3 },
+            // Adding back the grid lines and legend as requested
+            grid: {
+                show: true,
+                borderColor: '#e7e7e7',
+                xaxis: { lines: { show: true } }
+            },
+            xaxis: {
+                labels: { show: false } // Hide timestamps for now to keep it clean
+            },
+            yaxis: {
+                labels: {
+                    formatter: (val) => `$${val.toFixed(2)}`
+                }
+            },
+            colors: ['#0d6efd'],
+            fill: {
+                type: 'gradient',
+                gradient: { shadeIntensity: 1, opacityFrom: 0.7, opacityTo: 0.3 }
+            }
+        };
+
+        mainChart = new ApexCharts(document.querySelector("#main-stock-chart"), options);
+        mainChart.render();
+    }
+
+    // Interval Functionality (Placeholder logic for your intervals)
+    function updateChartInterval(interval, btn) {
+        // Update UI buttons
+        document.querySelectorAll('.btn-group .btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        
+        console.log(`Fetching data for ${interval}...`);
+        // Later, you can modify your API to accept ?interval=1W and return different data
+    }
+
+    // Initial Load
+    initChart();
+
+    // Live Price Update (Matches your dashboard logic)
+    setInterval(async () => {
+        const res = await fetch('/api/prices');
+        const stocks = await res.json();
+        const thisStock = stocks.find(s => s.symbol === symbol);
+        if (thisStock) {
+            document.getElementById('current-price').innerText = thisStock.price.toFixed(2);
+        }
+    }, 5000);
+</script>
+{% endblock %}
