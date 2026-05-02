@@ -57,6 +57,7 @@
 <script src="https://cdn.jsdelivr.net/npm/apexcharts@5.10.6"></script>
 <script>
     let mainChart;
+    let currentChartType = 'area';
     const symbol = "{{ stock.symbol }}";
 
     async function initChart() {
@@ -97,6 +98,15 @@
         }
     }
 
+    function switchChart(newType) {
+        currentChartType = newType; // Update the tracker
+        
+        document.getElementById('btn-line').classList.toggle('active', newType === 'area');
+        document.getElementById('btn-candle').classList.toggle('active', newType === 'candlestick');
+
+        initChart(newType);
+    }
+
     // Interval Functionality (Placeholder logic for your intervals)
     function updateChartInterval(interval, btn) {
         // Update UI buttons
@@ -111,12 +121,30 @@
     initChart();
 
     // Live Price Update (Matches your dashboard logic)
+    // Live Price & Chart Update Engine
     setInterval(async () => {
-        const res = await fetch('/api/prices');
-        const stocks = await res.json();
-        const thisStock = stocks.find(s => s.symbol === symbol);
-        if (thisStock) {
-            document.getElementById('current-price').innerText = thisStock.price.toFixed(2);
+        try {
+            // 1. Update the Text Price (Your existing logic)
+            const priceRes = await fetch('/api/prices');
+            const stocks = await priceRes.json();
+            const thisStock = stocks.find(s => s.symbol === symbol);
+            if (thisStock) {
+                document.getElementById('current-price').innerText = thisStock.price.toFixed(2);
+            }
+
+            // 2. Update the Live Chart Data
+            const histRes = await fetch(`/api/history/${symbol}`);
+            const data = await histRes.json();
+
+            // Feed it 'candle' or 'line' data depending on what button is active
+            const newData = (currentChartType === 'candlestick') ? data.candle : data.line;
+
+            // Push the new data into the chart WITHOUT reloading the whole page
+            if (mainChart) {
+                mainChart.updateSeries([{ data: newData }]);
+            }
+        } catch (error) {
+            console.error("Live update failed:", error);
         }
     }, 5000);
 </script>
