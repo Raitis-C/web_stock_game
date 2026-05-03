@@ -499,6 +499,61 @@ def register():
             
     return render_template('login.html', register=True, user=None)
 
+@app.route('/portfolio')
+def portfolio():
+    return render_template('portfolio.html')
+
+
+@app.route('/api/portfolio')
+def get_portfolio():
+    """Returns all holdings for the logged-in user with live prices and daily P&L."""
+    if 'user_id' not in session:
+        return jsonify({'holdings': [], 'cash': 0}), 401
+
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+
+    user = conn.execute("SELECT balance FROM users WHERE id = ?", (session['user_id'],)).fetchone()
+    cash = user['balance'] if user else 0
+
+    rows = conn.execute("""
+        SELECT
+            s.symbol, s.name, s.current_price,
+            p.quantity,
+            (s.current_price * p.quantity) AS total_value,
+            COALESCE(
+                (SELECT price FROM price_history ph
+                 WHERE ph.stock_id = s.id
+                   AND date(ph.timestamp, 'localtime') = date('now', 'localtime')
+                 ORDER BY ph.timestamp ASC LIMIT 1),
+                s.opening_price
+            ) AS day_start_price
+        FROM portfolio p
+        JOIN stocks s ON p.stock_id = s.id
+        WHERE p.user_id = ?
+        ORDER BY total_value DESC
+    """, (session['user_id'],)).fetchall()
+    conn.close()
+
+    holdings = []
+    for row in rows:
+        r = dict(row)
+        day_start = r['day_start_price'] or r['current_price']
+        pct = ((r['current_price'] - day_start) / day_start * 100) if day_start else 0
+        val_change = (r['current_price'] - day_start) * r['quantity']
+        holdings.append({
+            'symbol':          r['symbol'],
+            'name':            r['name'],
+            'quantity':        r['quantity'],
+            'current_price':   r['current_price'],
+            'total_value':     r['total_value'],
+            'day_change_pct':  round(pct, 2),
+            'day_change_value': round(val_change, 2),
+        })
+
+    return jsonify({'holdings': holdings, 'cash': cash})
+
+
 @app.route('/logout')
 def logout():
     session.clear()
