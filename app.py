@@ -29,7 +29,6 @@ def init_db():
             connection.execute("PRAGMA foreign_keys = ON;")
             connection.execute("PRAGMA journal_mode=WAL;")
             
-            # Using absolute paths relative to the app root is often safer in Flask
             schema_file = Path("Scripts/schema.sql") 
             seed_file = Path("Scripts/seed.sql")
             
@@ -47,7 +46,6 @@ def init_db():
         print(f"❌ Error: {e}")
         if DB_PATH.exists():
             try:
-                # Use unlink to ensure we don't leave a broken file
                 DB_PATH.unlink()
                 print("🗑️ Cleaned up corrupted database file.")
             except Exception as cleanup_err:
@@ -55,7 +53,6 @@ def init_db():
 
 def live_price_updates():
     """Background engine: handles 5-second wiggles AND random news events."""
-    # Set the first news timer: 5 mins +/- 5 mins (min 30 seconds)
     next_news_time = time.time() + max(30, (5 * 60) + random.uniform(-300, 300))
     
     while True:
@@ -65,7 +62,6 @@ def live_price_updates():
             cursor = conn.cursor()
             cursor.execute("PRAGMA foreign_keys = ON;")
 
-            # --- 1. THE 5-SECOND PRICE WIGGLE (Your original logic) ---
             stocks = cursor.execute("SELECT id, current_price, volatility FROM stocks").fetchall()
             for stock in stocks:
                 vol = stock['volatility']
@@ -75,10 +71,8 @@ def live_price_updates():
                 cursor.execute("UPDATE stocks SET current_price = ? WHERE id = ?", (new_price, stock['id']))
                 cursor.execute("INSERT INTO price_history (stock_id, price) VALUES (?, ?)", (stock['id'], new_price))
 
-            # --- 2. SERVER-SIDE NEWS LOGIC ---
             current_time = time.time()
             if current_time >= next_news_time:
-                # Grab one random piece of news
                 news_item = cursor.execute("""
                     SELECT n.id, n.effect, s.id as stock_id, s.current_price, s.symbol, n.headline
                     FROM News n
@@ -87,20 +81,15 @@ def live_price_updates():
                 """).fetchone()
 
                 if news_item:
-                    # Apply the impact mathematically
                     multiplier = 1 + (news_item['effect'] / 100.0)
                     spiked_price = round(max(0.01, news_item['current_price'] * multiplier), 2)
 
-                    # Update the stock price and log the huge jump in history
                     cursor.execute("UPDATE stocks SET current_price = ? WHERE id = ?", (spiked_price, news_item['stock_id']))
                     cursor.execute("INSERT INTO price_history (stock_id, price) VALUES (?, ?)", (news_item['stock_id'], spiked_price))
-                    
-                    # Record that this news actually happened!
                     cursor.execute("INSERT INTO news_events (news_id) VALUES (?)", (news_item['id'],))
                     
                     print(f"🚨 BREAKING NEWS: {news_item['headline']} applied to {news_item['symbol']}")
 
-                # Reset the timer for the next news event (5 mins +/- 5 mins)
                 next_news_time = time.time() + max(30, (5 * 60) + random.uniform(-300, 300))
 
             conn.commit()
@@ -109,14 +98,12 @@ def live_price_updates():
         except Exception as e:
             print(f"❌ Engine Error: {e}")
 
-        # Wait for 5 seconds before next tick
         time.sleep(5)
 
 def get_stocks_with_growth():
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     
-    # This one query handles the logic for both the Dashboard and the API
     query = """
         SELECT 
             s.*,
@@ -146,11 +133,9 @@ def get_stocks_with_growth():
     return stocks_list
 
 def get_db_news(limit=3):
-    """Fetches random news items joined with their stock symbols."""
     try:
         conn = sqlite3.connect(DB_PATH)
         conn.row_factory = sqlite3.Row
-        # We join with stocks so we can show WHICH stock is being affected
         query = """
             SELECT n.headline, n.effect as impact, s.symbol 
             FROM News n
@@ -168,7 +153,6 @@ def get_db_news(limit=3):
 
 @app.context_processor
 def inject_user():
-    # This makes 'user' available in EVERY .html file automatically
     if 'user_id' in session:
         conn = sqlite3.connect(DB_PATH)
         conn.row_factory = sqlite3.Row
@@ -179,7 +163,6 @@ def inject_user():
 
 @app.route('/')
 def dashboard():
-    # REMOVED the login redirect - now everyone can see this!
     all_stocks = get_stocks_with_growth()
     trending = sorted(all_stocks, key=lambda x: x['change_percent'], reverse=True)[:3]
 
@@ -200,12 +183,8 @@ def dashboard():
 
 @app.route('/stocks')
 def stocks():
-    # Fetch all stocks using your existing function
     all_stocks = get_stocks_with_growth()
-    
-    # Sort them alphabetically by symbol for easier browsing
     all_stocks = sorted(all_stocks, key=lambda x: x['symbol'])
-    
     return render_template('stocks.html', stocks=all_stocks)
 
 @app.route('/stock/<symbol>')
@@ -235,12 +214,10 @@ def get_prices():
 
 @app.route('/api/news')
 def get_news_api():
-    """API endpoint for the frontend to fetch the 3 most recently triggered news events."""
     try:
         conn = sqlite3.connect(DB_PATH)
         conn.row_factory = sqlite3.Row
         
-        # We query the new 'news_events' table to see what actually happened
         query = """
             SELECT n.headline, n.effect as impact, s.symbol, ne.triggered_at 
             FROM news_events ne
@@ -256,18 +233,14 @@ def get_news_api():
         print(f"❌ Error fetching news: {e}")
         return jsonify([])
 
-from datetime import datetime, timedelta
-
 @app.route('/api/history/<symbol>')
 def get_stock_history(symbol):
-    # Get the timeframe from the URL, default to 'all' if not provided
     timeframe = request.args.get('timeframe', 'all')
     
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     
     if timeframe == 'today':
-        # SPARKLINE QUERY: Only data since local midnight
         query = """
             SELECT price, timestamp FROM price_history ph
             JOIN stocks s ON ph.stock_id = s.id
@@ -276,7 +249,6 @@ def get_stock_history(symbol):
             ORDER BY ph.timestamp ASC
         """
     else:
-        # DETAILED QUERY: All data no matter how old
         query = """
             SELECT price, timestamp FROM price_history ph
             JOIN stocks s ON ph.stock_id = s.id
@@ -287,10 +259,8 @@ def get_stock_history(symbol):
     history = conn.execute(query, (symbol,)).fetchall()
     conn.close()
 
-    # Formats Line Data
     line_points = [{"x": row['timestamp'], "y": row['price']} for row in history]
 
-    # Generates Candlestick Data (15-minute buckets)
     candles = []
     if history:
         buckets = {}
@@ -313,6 +283,182 @@ def get_stock_history(symbol):
         "line": line_points,
         "candle": candles
     })
+
+
+# ── TRADING API ────────────────────────────────────────────────────────────────
+
+@app.route('/api/holdings/<symbol>')
+def get_holdings(symbol):
+    """Returns how many shares of a stock the logged-in user owns."""
+    if 'user_id' not in session:
+        return jsonify({'quantity': 0})
+    
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    result = conn.execute("""
+        SELECT p.quantity FROM portfolio p
+        JOIN stocks s ON p.stock_id = s.id
+        WHERE p.user_id = ? AND s.symbol = ?
+    """, (session['user_id'], symbol)).fetchone()
+    conn.close()
+    
+    return jsonify({'quantity': result['quantity'] if result else 0})
+
+
+@app.route('/api/buy', methods=['POST'])
+def buy_stock():
+    """Buy shares: deducts cost from balance, adds to portfolio."""
+    if 'user_id' not in session:
+        return jsonify({'success': False, 'error': 'Not logged in'}), 401
+    
+    data = request.get_json()
+    symbol   = data.get('symbol', '').upper().strip()
+    quantity = float(data.get('quantity', 0))
+    
+    if quantity <= 0:
+        return jsonify({'success': False, 'error': 'Quantity must be greater than zero'}), 400
+    
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA foreign_keys = ON;")
+    
+    try:
+        stock = conn.execute("SELECT * FROM stocks WHERE symbol = ?", (symbol,)).fetchone()
+        if not stock:
+            conn.close()
+            return jsonify({'success': False, 'error': 'Stock not found'}), 404
+        
+        total_cost = round(stock['current_price'] * quantity, 2)
+        user = conn.execute("SELECT * FROM users WHERE id = ?", (session['user_id'],)).fetchone()
+        
+        if user['balance'] < total_cost:
+            conn.close()
+            return jsonify({
+                'success': False,
+                'error': f"Insufficient funds — you need ${total_cost:,.2f} but only have ${user['balance']:,.2f}"
+            }), 400
+        
+        # Upsert portfolio row
+        existing = conn.execute(
+            "SELECT id FROM portfolio WHERE user_id = ? AND stock_id = ?",
+            (session['user_id'], stock['id'])
+        ).fetchone()
+        
+        if existing:
+            conn.execute(
+                "UPDATE portfolio SET quantity = quantity + ? WHERE user_id = ? AND stock_id = ?",
+                (quantity, session['user_id'], stock['id'])
+            )
+        else:
+            conn.execute(
+                "INSERT INTO portfolio (user_id, stock_id, quantity) VALUES (?, ?, ?)",
+                (session['user_id'], stock['id'], quantity)
+            )
+        
+        conn.execute(
+            "UPDATE users SET balance = balance - ? WHERE id = ?",
+            (total_cost, session['user_id'])
+        )
+        conn.commit()
+        
+        new_balance  = conn.execute("SELECT balance FROM users WHERE id = ?", (session['user_id'],)).fetchone()['balance']
+        new_quantity = conn.execute(
+            "SELECT quantity FROM portfolio WHERE user_id = ? AND stock_id = ?",
+            (session['user_id'], stock['id'])
+        ).fetchone()['quantity']
+        conn.close()
+        
+        return jsonify({
+            'success':      True,
+            'message':      f"Bought {quantity:g} share(s) of {symbol} for ${total_cost:,.2f}",
+            'new_balance':  new_balance,
+            'new_quantity': new_quantity
+        })
+        
+    except Exception as e:
+        conn.close()
+        print(f"❌ Buy error: {e}")
+        return jsonify({'success': False, 'error': 'Server error — please try again'}), 500
+
+
+@app.route('/api/sell', methods=['POST'])
+def sell_stock():
+    """Sell shares: adds proceeds to balance, removes from portfolio."""
+    if 'user_id' not in session:
+        return jsonify({'success': False, 'error': 'Not logged in'}), 401
+    
+    data = request.get_json()
+    symbol   = data.get('symbol', '').upper().strip()
+    quantity = float(data.get('quantity', 0))
+    
+    if quantity <= 0:
+        return jsonify({'success': False, 'error': 'Quantity must be greater than zero'}), 400
+    
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA foreign_keys = ON;")
+    
+    try:
+        stock = conn.execute("SELECT * FROM stocks WHERE symbol = ?", (symbol,)).fetchone()
+        if not stock:
+            conn.close()
+            return jsonify({'success': False, 'error': 'Stock not found'}), 404
+        
+        holding = conn.execute(
+            "SELECT * FROM portfolio WHERE user_id = ? AND stock_id = ?",
+            (session['user_id'], stock['id'])
+        ).fetchone()
+        
+        owned = holding['quantity'] if holding else 0
+        if not holding or owned < quantity:
+            conn.close()
+            return jsonify({
+                'success': False,
+                'error': f"You only own {owned:g} share(s) of {symbol}"
+            }), 400
+        
+        total_value = round(stock['current_price'] * quantity, 2)
+        
+        # Remove or reduce portfolio row
+        if abs(owned - quantity) < 0.0001:          # selling everything
+            conn.execute(
+                "DELETE FROM portfolio WHERE user_id = ? AND stock_id = ?",
+                (session['user_id'], stock['id'])
+            )
+            new_quantity = 0.0
+        else:
+            conn.execute(
+                "UPDATE portfolio SET quantity = quantity - ? WHERE user_id = ? AND stock_id = ?",
+                (quantity, session['user_id'], stock['id'])
+            )
+            new_quantity = conn.execute(
+                "SELECT quantity FROM portfolio WHERE user_id = ? AND stock_id = ?",
+                (session['user_id'], stock['id'])
+            ).fetchone()['quantity']
+        
+        conn.execute(
+            "UPDATE users SET balance = balance + ? WHERE id = ?",
+            (total_value, session['user_id'])
+        )
+        conn.commit()
+        
+        new_balance = conn.execute("SELECT balance FROM users WHERE id = ?", (session['user_id'],)).fetchone()['balance']
+        conn.close()
+        
+        return jsonify({
+            'success':      True,
+            'message':      f"Sold {quantity:g} share(s) of {symbol} for ${total_value:,.2f}",
+            'new_balance':  new_balance,
+            'new_quantity': new_quantity
+        })
+        
+    except Exception as e:
+        conn.close()
+        print(f"❌ Sell error: {e}")
+        return jsonify({'success': False, 'error': 'Server error — please try again'}), 500
+
+
+# ── AUTH ───────────────────────────────────────────────────────────────────────
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -362,8 +508,6 @@ def logout():
 if __name__ == "__main__":
     init_db()
 
-    # --- START THE THREAD ---
-    # This starts the function above as a 'daemon', meaning it dies when you stop app.py
     thread = threading.Thread(target=live_price_updates, daemon=True)
     thread.start()
 

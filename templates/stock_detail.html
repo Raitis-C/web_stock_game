@@ -20,8 +20,6 @@
                     </button>
                 </div>
             </div>
-
-            <!-- Removed 1D/1W/1M buttons -->
             <div class="badge bg-danger pulse-animation px-3 py-2 rounded-pill">
                 <i class="bi bi-broadcast"></i> LIVE 24H MARKET
             </div>
@@ -38,147 +36,268 @@
     <!-- Trading Section -->
     <div class="card shadow-lg border-0 rounded-4 bg-white">
         <div class="card-body p-4">
-            <div class="row align-items-center">
-                <div class="col-md-6">
-                    <h4 class="fw-bold mb-1">Trade {{ stock.symbol }}</h4>
-                    {% if user %}
-                        <p class="text-muted small fw-bold">Buying Power: ${{ "{:,.2f}".format(user.balance) }}</p>
-                    {% else %}
-                        <p class="text-danger small fw-bold"><i class="bi bi-lock-fill"></i> Please login to enable trading.</p>
-                    {% endif %}
+            {% if user %}
+            <div class="row align-items-start g-4">
+
+                <!-- Left: info -->
+                <div class="col-md-4">
+                    <h4 class="fw-bold mb-2">Trade {{ stock.symbol }}</h4>
+                    <p class="text-muted small fw-bold mb-1">
+                        <i class="bi bi-wallet2"></i> Buying Power:
+                        $<span id="buying-power">{{ "{:,.2f}".format(user.balance) }}</span>
+                    </p>
+                    <p class="text-muted small fw-bold mb-0">
+                        <i class="bi bi-briefcase"></i> You Own:
+                        <span id="shares-owned">—</span> shares
+                    </p>
                 </div>
-                <div class="col-md-6">
-                    <div class="d-flex gap-3">
-                        <!-- Conditional Buttons based on login status -->
-                        <button class="btn btn-success btn-lg flex-grow-1 fw-bold rounded-3 py-3 shadow-sm" 
-                                {% if not user %} disabled {% endif %}>
-                            BUY {{ stock.symbol }}
-                        </button>
-                        <button class="btn btn-danger btn-lg flex-grow-1 fw-bold rounded-3 py-3 shadow-sm" 
-                                {% if not user %} disabled {% endif %}>
-                            SELL {{ stock.symbol }}
-                        </button>
+
+                <!-- Right: controls -->
+                <div class="col-md-8">
+                    <div class="row g-3 align-items-end">
+
+                        <!-- Quantity -->
+                        <div class="col-sm-5">
+                            <label class="form-label small fw-bold text-muted text-uppercase">Quantity</label>
+                            <input type="number" id="quantity-input"
+                                   class="form-control form-control-lg border-0 bg-light fw-bold"
+                                   min="0.01" step="1" value="1" placeholder="0">
+                        </div>
+
+                        <!-- Estimated value -->
+                        <div class="col-sm-5">
+                            <label class="form-label small fw-bold text-muted text-uppercase">Est. Value</label>
+                            <div class="form-control form-control-lg border-0 bg-light fw-bold text-muted"
+                                 id="est-cost">$0.00</div>
+                        </div>
+
+                        <!-- Buttons -->
+                        <div class="col-12">
+                            <div class="d-flex gap-3">
+                                <button class="btn btn-success btn-lg flex-grow-1 fw-bold rounded-3 py-3 shadow-sm"
+                                        id="btn-buy" onclick="executeTrade('buy')">
+                                    <i class="bi bi-graph-up-arrow"></i> BUY {{ stock.symbol }}
+                                </button>
+                                <button class="btn btn-danger btn-lg flex-grow-1 fw-bold rounded-3 py-3 shadow-sm"
+                                        id="btn-sell" onclick="executeTrade('sell')">
+                                    <i class="bi bi-graph-down-arrow"></i> SELL {{ stock.symbol }}
+                                </button>
+                            </div>
+                        </div>
+
                     </div>
                 </div>
             </div>
+
+            {% else %}
+            <!-- Logged-out state -->
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+                <div>
+                    <h4 class="fw-bold mb-1">Trade {{ stock.symbol }}</h4>
+                    <p class="text-danger small fw-bold mb-0">
+                        <i class="bi bi-lock-fill"></i> Please login to enable trading.
+                    </p>
+                </div>
+                <div class="d-flex gap-3">
+                    <button class="btn btn-success btn-lg fw-bold rounded-3 py-3 px-4 shadow-sm" disabled>
+                        BUY {{ stock.symbol }}
+                    </button>
+                    <button class="btn btn-danger btn-lg fw-bold rounded-3 py-3 px-4 shadow-sm" disabled>
+                        SELL {{ stock.symbol }}
+                    </button>
+                </div>
+            </div>
+            {% endif %}
         </div>
     </div>
 </div>
 
+<!-- ── Toast Notification ─────────────────────────────────────────────────── -->
+<div class="position-fixed bottom-0 end-0 p-3" style="z-index: 1100">
+    <div id="trade-toast" class="toast align-items-center border-0 shadow-lg rounded-4" role="alert" aria-live="assertive">
+        <div class="d-flex">
+            <div class="toast-body fw-bold fs-6" id="toast-message"></div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+        </div>
+    </div>
+</div>
+
+
+<!-- Add data attributes to a wrapper element -->
+<div id="trade-data" 
+     data-price="{{ stock.current_price }}" 
+     data-symbol="{{ stock.symbol }}"
+     style="display:none;">
+</div>
+
+<!-- ── Scripts ────────────────────────────────────────────────────────────── -->
 <script src="https://cdn.jsdelivr.net/npm/apexcharts@5.10.6"></script>
 <script>
     let mainChart;
     let currentChartType = 'area';
-    const symbol = "{{ stock.symbol }}";
+
+    // Read from data attributes instead — linter-safe
+    const tradeData    = document.getElementById('trade-data');
+    let currentPrice   = parseFloat(tradeData.dataset.price);
+    const symbol       = tradeData.dataset.symbol;
+
+    // ── Chart ──────────────────────────────────────────────────────────────
 
     async function initChart(type = 'area') {
         const response = await fetch(`/api/history/${symbol}?timeframe=all`);
         const data = await response.json();
-
-        // Pick the right data based on the requested type
         const chartData = (type === 'candlestick') ? data.candle : data.line;
 
         const options = {
-            series: [{ 
-                name: type === 'candlestick' ? 'Market Data' : 'Price', 
-                data: chartData 
-            }],
+            series: [{ name: type === 'candlestick' ? 'Market Data' : 'Price', data: chartData }],
             chart: {
-                type: type, // This MUST be 'area' or 'candlestick'
+                type: type,
                 height: 400,
-                animations: { 
-                    enabled: true, 
-                    speed: 800 
-                },
+                animations: { enabled: true, speed: 800 },
                 toolbar: { show: false }
             },
             dataLabels: { enabled: false },
             xaxis: {
                 type: 'datetime',
-                labels: {
-                    datetimeUTC: false,
-                    style: { fontWeight: 'bold' }
-                }
+                labels: { datetimeUTC: false, style: { fontWeight: 'bold' } }
             },
-            tooltip: {
-                x: { format: 'HH:mm:ss' }
-            },
-            // Candlesticks shouldn't have "smooth" curves
-            stroke: { 
+            tooltip: { x: { format: 'HH:mm:ss' } },
+            stroke: {
                 curve: type === 'area' ? 'smooth' : 'straight',
                 width: type === 'area' ? 3 : 1
             }
         };
 
-        // IMPORTANT: If a chart already exists, destroy it so the new type can render[cite: 2]
-        if (mainChart) {
-            mainChart.destroy();
-        }
-        
+        if (mainChart) mainChart.destroy();
         mainChart = new ApexCharts(document.querySelector("#main-stock-chart"), options);
         mainChart.render();
     }
 
     function switchChart(newType) {
-        currentChartType = newType; // Update the tracker
-        
+        currentChartType = newType;
         document.getElementById('btn-line').classList.toggle('active', newType === 'area');
         document.getElementById('btn-candle').classList.toggle('active', newType === 'candlestick');
-
         initChart(newType);
     }
 
-    // Interval Functionality (Placeholder logic for your intervals)
-    function updateChartInterval(interval, btn) {
-        // Update UI buttons
-        document.querySelectorAll('.btn-group .btn').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        
-        console.log(`Fetching data for ${interval}...`);
-        // Later, you can modify your API to accept ?interval=1W and return different data
-    }
-
-    // Initial Load
     initChart();
 
-    // Live Price Update (Matches your dashboard logic)
-    // Live Price & Chart Update Engine
+    // ── Live price + chart refresh ─────────────────────────────────────────
+
     setInterval(async () => {
         try {
-            // 1. Update the Text Price[cite: 2]
             const priceRes = await fetch('/api/prices');
             const stocks = await priceRes.json();
             const thisStock = stocks.find(s => s.symbol === symbol);
             if (thisStock) {
-                document.getElementById('current-price').innerText = thisStock.price.toFixed(2);
+                currentPrice = thisStock.price;
+                document.getElementById('current-price').innerText = currentPrice.toFixed(2);
+                // Refresh the estimated cost display with the new price
+                recalcCost();
             }
 
-            // 2. Update the Live Chart Data
             const histRes = await fetch(`/api/history/${symbol}?timeframe=all`);
             const data = await histRes.json();
 
-            // 3. Determine the correct dataset and series name
-            let newData;
-            let newName;
-            
+            let newData, newName;
             if (currentChartType === 'candlestick') {
                 newData = data.candle || [];
-                newName = 'Market OHLC'; // Candlesticks prefer a different series identity
+                newName = 'Market OHLC';
             } else {
-                newData = data.line || data.history; 
+                newData = data.line || data.history;
                 newName = 'Price';
             }
 
             if (mainChart && newData && newData.length > 0) {
-                // updateSeries should include the name to keep the chart state consistent
-                mainChart.updateSeries([{ 
-                    name: newName, 
-                    data: newData 
-                }]);
+                mainChart.updateSeries([{ name: newName, data: newData }]);
             }
         } catch (error) {
             console.error("Live update failed:", error);
         }
     }, 5000);
+
+    // ── Trading ────────────────────────────────────────────────────────────
+
+    function recalcCost() {
+        const qty = parseFloat(document.getElementById('quantity-input')?.value) || 0;
+        const cost = qty * currentPrice;
+        const el = document.getElementById('est-cost');
+        if (el) el.innerText = '$' + cost.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    async function fetchHoldings() {
+        try {
+            const res = await fetch(`/api/holdings/${symbol}`);
+            const data = await res.json();
+            const el = document.getElementById('shares-owned');
+            if (el) el.innerText = parseFloat(data.quantity).toLocaleString('en-US', { maximumFractionDigits: 4 });
+        } catch (e) { /* silent */ }
+    }
+
+    async function executeTrade(action) {
+        const qtyInput = document.getElementById('quantity-input');
+        const quantity = parseFloat(qtyInput.value);
+
+        if (!quantity || quantity <= 0) {
+            showToast('Please enter a valid quantity.', false);
+            return;
+        }
+
+        const btn = document.getElementById(`btn-${action}`);
+        const originalHtml = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = `<span class="spinner-border spinner-border-sm me-2" role="status"></span> Processing…`;
+
+        try {
+            const response = await fetch(`/api/${action}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ symbol, quantity })
+            });
+            const result = await response.json();
+
+            if (result.success) {
+                showToast(result.message, true);
+
+                // Update balance display (navbar + card)
+                const fmt = n => n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                document.getElementById('buying-power').innerText = fmt(result.new_balance);
+
+                // Update shares owned
+                const sharesEl = document.getElementById('shares-owned');
+                if (sharesEl) sharesEl.innerText = parseFloat(result.new_quantity).toLocaleString('en-US', { maximumFractionDigits: 4 });
+
+            } else {
+                showToast(result.error, false);
+            }
+        } catch (err) {
+            showToast('Trade failed — please try again.', false);
+            console.error(err);
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = originalHtml;
+        }
+    }
+
+    function showToast(message, isSuccess) {
+        const toast = document.getElementById('trade-toast');
+        const toastMsg = document.getElementById('toast-message');
+
+        toast.className = `toast align-items-center border-0 shadow-lg rounded-4 text-white ${isSuccess ? 'bg-success' : 'bg-danger'}`;
+        toastMsg.innerText = message;
+
+        const bsToast = new bootstrap.Toast(toast, { delay: 4000 });
+        bsToast.show();
+    }
+
+    // Wire up cost recalculation
+    const qtyInput = document.getElementById('quantity-input');
+    if (qtyInput) {
+        qtyInput.addEventListener('input', recalcCost);
+        recalcCost(); // initial render
+    }
+
+    // Load user's current holdings on page load
+    fetchHoldings();
 </script>
 {% endblock %}
