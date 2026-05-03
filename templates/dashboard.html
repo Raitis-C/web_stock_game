@@ -109,7 +109,7 @@
     async function renderStockChart(symbol, isPositive) {
         try {
             // Fetch the history for this specific stock
-            const response = await fetch(`/api/history/${symbol}`);
+            const response = await fetch(`/api/history/${symbol}?timeframe=today`);
             const data = await response.json();
 
             // Setup ApexCharts

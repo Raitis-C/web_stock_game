@@ -72,7 +72,7 @@
     const symbol = "{{ stock.symbol }}";
 
     async function initChart(type = 'area') {
-        const response = await fetch(`/api/history/${symbol}`);
+        const response = await fetch(`/api/history/${symbol}?timeframe=all`);
         const data = await response.json();
 
         // Pick the right data based on the requested type
@@ -154,7 +154,7 @@
             }
 
             // 2. Update the Live Chart Data
-            const histRes = await fetch(`/api/history/${symbol}`);
+            const histRes = await fetch(`/api/history/${symbol}?timeframe=all`);
             const data = await histRes.json();
 
             // 3. Determine the correct dataset and series name

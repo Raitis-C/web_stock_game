@@ -260,30 +260,41 @@ from datetime import datetime, timedelta
 
 @app.route('/api/history/<symbol>')
 def get_stock_history(symbol):
+    # Get the timeframe from the URL, default to 'all' if not provided
+    timeframe = request.args.get('timeframe', 'all')
+    
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     
-    # 1. Fetch the raw 24h data
-    query = """
-        SELECT price, timestamp FROM price_history ph
-        JOIN stocks s ON ph.stock_id = s.id
-        WHERE s.symbol = ? 
-          AND ph.timestamp >= datetime('now', '-24 hours')
-        ORDER BY ph.timestamp ASC
-    """
+    if timeframe == 'today':
+        # SPARKLINE QUERY: Only data since local midnight
+        query = """
+            SELECT price, timestamp FROM price_history ph
+            JOIN stocks s ON ph.stock_id = s.id
+            WHERE s.symbol = ? 
+              AND date(ph.timestamp, 'localtime') = date('now', 'localtime')
+            ORDER BY ph.timestamp ASC
+        """
+    else:
+        # DETAILED QUERY: All data no matter how old
+        query = """
+            SELECT price, timestamp FROM price_history ph
+            JOIN stocks s ON ph.stock_id = s.id
+            WHERE s.symbol = ? 
+            ORDER BY ph.timestamp ASC
+        """
+        
     history = conn.execute(query, (symbol,)).fetchall()
     conn.close()
 
-    # 2. Format Line Data
+    # Formats Line Data
     line_points = [{"x": row['timestamp'], "y": row['price']} for row in history]
 
-    # 3. Generate Candlestick Data (15-minute buckets)
+    # Generates Candlestick Data (15-minute buckets)
     candles = []
     if history:
-        # Group raw data by 15-minute intervals
         buckets = {}
         for row in history:
-            # Round the timestamp down to the nearest 15 minutes
             dt = datetime.strptime(row['timestamp'], '%Y-%m-%d %H:%M:%S')
             bucket_time = dt.replace(minute=(dt.minute // 15) * 15, second=0).strftime('%Y-%m-%d %H:%M:%S')
             
@@ -294,18 +305,13 @@ def get_stock_history(symbol):
         for time_key, prices in buckets.items():
             candles.append({
                 "x": time_key,
-                "y": [
-                    prices[0],             # Open
-                    max(prices),           # High
-                    min(prices),           # Low
-                    prices[-1]             # Close
-                ]
+                "y": [ prices[0], max(prices), min(prices), prices[-1] ]
             })
 
     return jsonify({
         "history": line_points,
         "line": line_points,
-        "candle": candles # Now this contains actual data!
+        "candle": candles
     })
 
 @app.route('/login', methods=['GET', 'POST'])
