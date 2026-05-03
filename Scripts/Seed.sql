@@ -49,7 +49,7 @@ INSERT OR IGNORE INTO News (headline, stock_id, effect) VALUES
 
 -- CL (Crude Oil)
 ('New engine runs entirely on thoughts and prayers; oil demand wavers', (SELECT id FROM stocks WHERE symbol = 'CL'), -20.0),
-('Oil rig accidentally taps into "Liquid Immortality"; CEO stops aging, refuses to retire', (SELECT id FROM stocks WHERE symbol = 'CL'), 110.0),
+('Oil rig accidentally taps into "Liquid Immortality"; CEO stops aging, refuses to retire', (SELECT id FROM stocks WHERE symbol = 'CL'), 53.0),
 ('Global "No-Gas" movement collapses after activists realize walking is hard', (SELECT id FROM stocks WHERE symbol = 'CL'), 35.0),
 ('Inventor of water-powered engine vanishes at 3 AM on Monday', (SELECT id FROM stocks WHERE symbol = 'CL'), 22.0),
 
