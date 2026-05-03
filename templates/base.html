@@ -33,7 +33,7 @@
                 {% if user %}
                 <div class="d-flex align-items-center gap-3">
                     <span class="text-muted small fw-bold">HELLO, {{ session.username }}</span>
-                    <div class="btn btn-warning fw-bold rounded-pill shadow-sm py-2 px-4">
+                    <div id="nav-balance" class="btn btn-warning fw-bold rounded-pill shadow-sm py-2 px-4">
                         Balance: ${{ "{:,.2f}".format(user.balance) }}
                     </div>
                     <a href="{{ url_for('logout') }}" class="btn btn-outline-danger btn-sm rounded-pill">

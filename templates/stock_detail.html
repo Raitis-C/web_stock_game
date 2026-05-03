@@ -2,6 +2,13 @@
 {% block title %}{{ stock.symbol }} Details - Dumpster Fire Trades{% endblock %}
 
 {% block content %}
+
+<!-- Jinja data for JS — linter-safe -->
+<div id="trade-data"
+     data-price="{{ stock.current_price }}"
+     data-symbol="{{ stock.symbol }}"
+     style="display:none;"></div>
+
 <div class="container py-4">
     <!-- Header -->
     <div class="row align-items-center mb-4">
@@ -12,12 +19,8 @@
         <div class="col-md-4 text-md-end">
             <div class="d-flex justify-content-end mb-3">
                 <div class="btn-group shadow-sm">
-                    <button type="button" class="btn btn-outline-primary active" id="btn-line" onclick="switchChart('area')">
-                        Line
-                    </button>
-                    <button type="button" class="btn btn-outline-primary" id="btn-candle" onclick="switchChart('candlestick')">
-                        Candle
-                    </button>
+                    <button type="button" class="btn btn-outline-primary active" id="btn-line" onclick="switchChart('area')">Line</button>
+                    <button type="button" class="btn btn-outline-primary" id="btn-candle" onclick="switchChart('candlestick')">Candle</button>
                 </div>
             </div>
             <div class="badge bg-danger pulse-animation px-3 py-2 rounded-pill">
@@ -56,19 +59,23 @@
                 <div class="col-md-8">
                     <div class="row g-3 align-items-end">
 
-                        <!-- Quantity -->
-                        <div class="col-sm-5">
-                            <label class="form-label small fw-bold text-muted text-uppercase">Quantity</label>
-                            <input type="number" id="quantity-input"
+                        <!-- Shares input -->
+                        <div class="col-sm-6">
+                            <label class="form-label small fw-bold text-muted text-uppercase">Shares</label>
+                            <input type="number" id="input-shares"
                                    class="form-control form-control-lg border-0 bg-light fw-bold"
-                                   min="0.01" step="1" value="1" placeholder="0">
+                                   min="0" step="any" placeholder="0.00">
                         </div>
 
-                        <!-- Estimated value -->
-                        <div class="col-sm-5">
-                            <label class="form-label small fw-bold text-muted text-uppercase">Est. Value</label>
-                            <div class="form-control form-control-lg border-0 bg-light fw-bold text-muted"
-                                 id="est-cost">$0.00</div>
+                        <!-- USD input -->
+                        <div class="col-sm-6">
+                            <label class="form-label small fw-bold text-muted text-uppercase">Amount (USD)</label>
+                            <div class="input-group input-group-lg">
+                                <span class="input-group-text border-0 bg-light fw-bold text-muted">$</span>
+                                <input type="number" id="input-usd"
+                                       class="form-control border-0 bg-light fw-bold"
+                                       min="0" step="any" placeholder="0.00">
+                            </div>
                         </div>
 
                         <!-- Buttons -->
@@ -90,7 +97,6 @@
             </div>
 
             {% else %}
-            <!-- Logged-out state -->
             <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
                 <div>
                     <h4 class="fw-bold mb-1">Trade {{ stock.symbol }}</h4>
@@ -99,12 +105,8 @@
                     </p>
                 </div>
                 <div class="d-flex gap-3">
-                    <button class="btn btn-success btn-lg fw-bold rounded-3 py-3 px-4 shadow-sm" disabled>
-                        BUY {{ stock.symbol }}
-                    </button>
-                    <button class="btn btn-danger btn-lg fw-bold rounded-3 py-3 px-4 shadow-sm" disabled>
-                        SELL {{ stock.symbol }}
-                    </button>
+                    <button class="btn btn-success btn-lg fw-bold rounded-3 py-3 px-4 shadow-sm" disabled>BUY {{ stock.symbol }}</button>
+                    <button class="btn btn-danger btn-lg fw-bold rounded-3 py-3 px-4 shadow-sm" disabled>SELL {{ stock.symbol }}</button>
                 </div>
             </div>
             {% endif %}
@@ -112,7 +114,7 @@
     </div>
 </div>
 
-<!-- ── Toast Notification ─────────────────────────────────────────────────── -->
+<!-- Toast -->
 <div class="position-fixed bottom-0 end-0 p-3" style="z-index: 1100">
     <div id="trade-toast" class="toast align-items-center border-0 shadow-lg rounded-4" role="alert" aria-live="assertive">
         <div class="d-flex">
@@ -122,24 +124,46 @@
     </div>
 </div>
 
-
-<!-- Add data attributes to a wrapper element -->
-<div id="trade-data" 
-     data-price="{{ stock.current_price }}" 
-     data-symbol="{{ stock.symbol }}"
-     style="display:none;">
-</div>
-
-<!-- ── Scripts ────────────────────────────────────────────────────────────── -->
 <script src="https://cdn.jsdelivr.net/npm/apexcharts@5.10.6"></script>
 <script>
     let mainChart;
     let currentChartType = 'area';
 
-    // Read from data attributes instead — linter-safe
-    const tradeData    = document.getElementById('trade-data');
-    let currentPrice   = parseFloat(tradeData.dataset.price);
-    const symbol       = tradeData.dataset.symbol;
+    const tradeData  = document.getElementById('trade-data');
+    let currentPrice = parseFloat(tradeData.dataset.price);
+    const symbol     = tradeData.dataset.symbol;
+
+    // Track which input the user last typed in so we always update the other one
+    let lastEdited = 'shares';
+
+    const sharesInput = document.getElementById('input-shares');
+    const usdInput    = document.getElementById('input-usd');
+
+    if (sharesInput) {
+        sharesInput.addEventListener('input', () => {
+            lastEdited = 'shares';
+            const shares = parseFloat(sharesInput.value);
+            usdInput.value = (shares > 0) ? (shares * currentPrice).toFixed(2) : '';
+        });
+
+        usdInput.addEventListener('input', () => {
+            lastEdited = 'usd';
+            const usd = parseFloat(usdInput.value);
+            sharesInput.value = (usd > 0 && currentPrice > 0) ? (usd / currentPrice).toFixed(6) : '';
+        });
+    }
+
+    // Called every 5 s to keep the passive input in sync with the live price
+    function syncInputsToPrice() {
+        if (!sharesInput) return;
+        if (lastEdited === 'shares') {
+            const shares = parseFloat(sharesInput.value);
+            if (shares > 0) usdInput.value = (shares * currentPrice).toFixed(2);
+        } else {
+            const usd = parseFloat(usdInput.value);
+            if (usd > 0 && currentPrice > 0) sharesInput.value = (usd / currentPrice).toFixed(6);
+        }
+    }
 
     // ── Chart ──────────────────────────────────────────────────────────────
 
@@ -150,22 +174,11 @@
 
         const options = {
             series: [{ name: type === 'candlestick' ? 'Market Data' : 'Price', data: chartData }],
-            chart: {
-                type: type,
-                height: 400,
-                animations: { enabled: true, speed: 800 },
-                toolbar: { show: false }
-            },
+            chart: { type, height: 400, animations: { enabled: true, speed: 800 }, toolbar: { show: false } },
             dataLabels: { enabled: false },
-            xaxis: {
-                type: 'datetime',
-                labels: { datetimeUTC: false, style: { fontWeight: 'bold' } }
-            },
+            xaxis: { type: 'datetime', labels: { datetimeUTC: false, style: { fontWeight: 'bold' } } },
             tooltip: { x: { format: 'HH:mm:ss' } },
-            stroke: {
-                curve: type === 'area' ? 'smooth' : 'straight',
-                width: type === 'area' ? 3 : 1
-            }
+            stroke: { curve: type === 'area' ? 'smooth' : 'straight', width: type === 'area' ? 3 : 1 }
         };
 
         if (mainChart) mainChart.destroy();
@@ -182,64 +195,59 @@
 
     initChart();
 
-    // ── Live price + chart refresh ─────────────────────────────────────────
+    // ── Live tick (price + chart + inputs) ────────────────────────────────
 
     setInterval(async () => {
         try {
-            const priceRes = await fetch('/api/prices');
-            const stocks = await priceRes.json();
+            const priceRes  = await fetch('/api/prices');
+            const stocks    = await priceRes.json();
             const thisStock = stocks.find(s => s.symbol === symbol);
+
             if (thisStock) {
                 currentPrice = thisStock.price;
                 document.getElementById('current-price').innerText = currentPrice.toFixed(2);
-                // Refresh the estimated cost display with the new price
-                recalcCost();
+                syncInputsToPrice();
             }
 
             const histRes = await fetch(`/api/history/${symbol}?timeframe=all`);
-            const data = await histRes.json();
-
-            let newData, newName;
-            if (currentChartType === 'candlestick') {
-                newData = data.candle || [];
-                newName = 'Market OHLC';
-            } else {
-                newData = data.line || data.history;
-                newName = 'Price';
-            }
+            const data    = await histRes.json();
+            const newData = currentChartType === 'candlestick' ? data.candle : (data.line || data.history);
+            const newName = currentChartType === 'candlestick' ? 'Market OHLC' : 'Price';
 
             if (mainChart && newData && newData.length > 0) {
                 mainChart.updateSeries([{ name: newName, data: newData }]);
             }
-        } catch (error) {
-            console.error("Live update failed:", error);
+        } catch (e) {
+            console.error("Live update failed:", e);
         }
     }, 5000);
 
     // ── Trading ────────────────────────────────────────────────────────────
 
-    function recalcCost() {
-        const qty = parseFloat(document.getElementById('quantity-input')?.value) || 0;
-        const cost = qty * currentPrice;
-        const el = document.getElementById('est-cost');
-        if (el) el.innerText = '$' + cost.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    }
-
     async function fetchHoldings() {
         try {
-            const res = await fetch(`/api/holdings/${symbol}`);
+            const res  = await fetch(`/api/holdings/${symbol}`);
             const data = await res.json();
-            const el = document.getElementById('shares-owned');
-            if (el) el.innerText = parseFloat(data.quantity).toLocaleString('en-US', { maximumFractionDigits: 4 });
+            const el   = document.getElementById('shares-owned');
+            if (el) el.innerText = parseFloat(data.quantity).toLocaleString('en-US', { maximumFractionDigits: 6 });
         } catch (e) { /* silent */ }
     }
 
-    async function executeTrade(action) {
-        const qtyInput = document.getElementById('quantity-input');
-        const quantity = parseFloat(qtyInput.value);
+    function updateBalanceDisplay(newBalance) {
+        const fmt = n => n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        // Trading card
+        const cardBal = document.getElementById('buying-power');
+        if (cardBal) cardBal.innerText = fmt(newBalance);
+        // Navbar — requires id="nav-balance" on the element in base.html
+        const navBal = document.getElementById('nav-balance');
+        if (navBal) navBal.innerText = 'Balance: $' + fmt(newBalance);
+    }
 
-        if (!quantity || quantity <= 0) {
-            showToast('Please enter a valid quantity.', false);
+    async function executeTrade(action) {
+        const shares = parseFloat(sharesInput?.value);
+
+        if (!shares || shares <= 0) {
+            showToast('Please enter a valid quantity or dollar amount.', false);
             return;
         }
 
@@ -249,30 +257,29 @@
         btn.innerHTML = `<span class="spinner-border spinner-border-sm me-2" role="status"></span> Processing…`;
 
         try {
-            const response = await fetch(`/api/${action}`, {
-                method: 'POST',
+            const res    = await fetch(`/api/${action}`, {
+                method:  'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ symbol, quantity })
+                body:    JSON.stringify({ symbol, quantity: shares })
             });
-            const result = await response.json();
+            const result = await res.json();
 
             if (result.success) {
                 showToast(result.message, true);
+                updateBalanceDisplay(result.new_balance);
 
-                // Update balance display (navbar + card)
-                const fmt = n => n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-                document.getElementById('buying-power').innerText = fmt(result.new_balance);
-
-                // Update shares owned
                 const sharesEl = document.getElementById('shares-owned');
-                if (sharesEl) sharesEl.innerText = parseFloat(result.new_quantity).toLocaleString('en-US', { maximumFractionDigits: 4 });
+                if (sharesEl) sharesEl.innerText = parseFloat(result.new_quantity)
+                    .toLocaleString('en-US', { maximumFractionDigits: 6 });
 
+                // Clear both inputs after a successful trade
+                sharesInput.value = '';
+                usdInput.value    = '';
             } else {
                 showToast(result.error, false);
             }
         } catch (err) {
             showToast('Trade failed — please try again.', false);
-            console.error(err);
         } finally {
             btn.disabled = false;
             btn.innerHTML = originalHtml;
@@ -280,24 +287,13 @@
     }
 
     function showToast(message, isSuccess) {
-        const toast = document.getElementById('trade-toast');
+        const toast    = document.getElementById('trade-toast');
         const toastMsg = document.getElementById('toast-message');
-
         toast.className = `toast align-items-center border-0 shadow-lg rounded-4 text-white ${isSuccess ? 'bg-success' : 'bg-danger'}`;
         toastMsg.innerText = message;
-
-        const bsToast = new bootstrap.Toast(toast, { delay: 4000 });
-        bsToast.show();
+        new bootstrap.Toast(toast, { delay: 4000 }).show();
     }
 
-    // Wire up cost recalculation
-    const qtyInput = document.getElementById('quantity-input');
-    if (qtyInput) {
-        qtyInput.addEventListener('input', recalcCost);
-        recalcCost(); // initial render
-    }
-
-    // Load user's current holdings on page load
     fetchHoldings();
 </script>
 {% endblock %}
