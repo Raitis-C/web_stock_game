@@ -66,7 +66,8 @@ def live_price_updates():
             for stock in stocks:
                 vol = stock['volatility']
                 change = random.uniform(-vol, vol)
-                new_price = round(max(0.01, stock['current_price'] + change), 2)
+                decimals = 4 if stock['current_price'] < 1 else 2
+                new_price = round(max(0.0001, stock['current_price'] + change), decimals)
                 
                 cursor.execute("UPDATE stocks SET current_price = ? WHERE id = ?", (new_price, stock['id']))
                 cursor.execute("INSERT INTO price_history (stock_id, price) VALUES (?, ?)", (stock['id'], new_price))
