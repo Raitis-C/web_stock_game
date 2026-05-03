@@ -1,0 +1,453 @@
+{% extends "base.html" %}
+{% block title %}Leaderboard - Dumpster Fire Trades{% endblock %}
+
+{% block content %}
+
+<style>
+    /* ── Toggle ─────────────────────────────────────────────────────── */
+    .mode-toggle {
+        display: inline-flex;
+        background: #e9ecef;
+        border-radius: 50px;
+        padding: 5px;
+        position: relative;
+        gap: 0;
+    }
+
+    .mode-toggle-pill {
+        position: absolute;
+        top: 5px;
+        left: 5px;
+        height: calc(100% - 10px);
+        width: calc(50% - 5px);
+        background: #212529;
+        border-radius: 50px;
+        transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        z-index: 0;
+    }
+
+    .mode-toggle-pill.right {
+        transform: translateX(calc(100% + 0px));
+    }
+
+    .mode-btn {
+        position: relative;
+        z-index: 1;
+        border: none;
+        background: transparent;
+        border-radius: 50px;
+        padding: 10px 28px;
+        font-weight: 800;
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        cursor: pointer;
+        transition: color 0.2s;
+        color: #6c757d;
+        white-space: nowrap;
+    }
+
+    .mode-btn.active { color: #fff; }
+
+    /* ── Podium ─────────────────────────────────────────────────────── */
+    .podium-wrap {
+        display: flex;
+        align-items: flex-end;
+        justify-content: center;
+        gap: 12px;
+        margin-bottom: 2rem;
+    }
+
+    .podium-col {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        width: 160px;
+    }
+
+    .podium-avatar {
+        width: 56px; height: 56px;
+        border-radius: 50%;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 1.5rem;
+        font-weight: 900;
+        margin-bottom: 8px;
+        border: 3px solid transparent;
+        flex-shrink: 0;
+    }
+
+    .podium-name {
+        font-weight: 800;
+        font-size: 0.9rem;
+        text-align: center;
+        margin-bottom: 2px;
+        word-break: break-word;
+    }
+
+    .podium-worth {
+        font-size: 0.8rem;
+        font-weight: 700;
+        color: #6c757d;
+        margin-bottom: 8px;
+    }
+
+    .podium-block {
+        width: 100%;
+        border-radius: 12px 12px 0 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.6rem;
+    }
+
+    /* Gold */
+    .podium-col.first .podium-avatar  { background: #fff8e1; border-color: #ffc107; color: #f59f00; }
+    .podium-col.first .podium-block   { background: #ffc107; height: 90px; }
+    /* Silver */
+    .podium-col.second .podium-avatar { background: #f5f5f5; border-color: #adb5bd; color: #868e96; }
+    .podium-col.second .podium-block  { background: #dee2e6; height: 65px; }
+    /* Bronze */
+    .podium-col.third .podium-avatar  { background: #fff3e0; border-color: #fd7e14; color: #e8590c; }
+    .podium-col.third .podium-block   { background: #f8d5b0; height: 48px; }
+
+    /* ── Table ──────────────────────────────────────────────────────── */
+    .rank-row { transition: background 0.15s; }
+    .rank-row:hover { background: #f8f9fa; }
+    .rank-row.is-you { background: #fff9e6 !important; }
+    .rank-row.is-you:hover { background: #fff3cd !important; }
+
+    .rank-badge {
+        width: 32px; height: 32px;
+        border-radius: 50%;
+        display: inline-flex; align-items: center; justify-content: center;
+        font-weight: 900; font-size: 0.8rem;
+        background: #f1f3f5; color: #495057;
+        flex-shrink: 0;
+    }
+
+    /* ── Progress bar (campaign) ────────────────────────────────────── */
+    .campaign-progress-wrap {
+        background: #e9ecef;
+        border-radius: 20px;
+        height: 8px;
+        overflow: hidden;
+        margin-top: 6px;
+    }
+    .campaign-progress-bar {
+        height: 100%;
+        border-radius: 20px;
+        background: linear-gradient(90deg, #198754, #20c997);
+        transition: width 0.6s ease;
+    }
+
+    /* ── Fade transition ────────────────────────────────────────────── */
+    .board-panel {
+        animation: fadeUp 0.3s ease both;
+    }
+    @keyframes fadeUp {
+        from { opacity: 0; transform: translateY(12px); }
+        to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ── You badge ──────────────────────────────────────────────────── */
+    .you-badge {
+        font-size: 0.65rem;
+        background: #ffc107;
+        color: #212529;
+        border-radius: 20px;
+        padding: 1px 7px;
+        font-weight: 800;
+        vertical-align: middle;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+    }
+</style>
+
+<div class="container py-4">
+
+    <!-- ── Header + Toggle ────────────────────────────────────────────── -->
+    <div class="row mb-4 align-items-center">
+        <div class="col-md-6 mb-3 mb-md-0">
+            <h1 class="display-6 fw-bold text-uppercase mb-0">Leaderboard</h1>
+            <p class="text-muted fw-bold mb-0">Who's winning the dumpster fire?</p>
+        </div>
+        <div class="col-md-6 d-flex justify-content-md-end">
+            <div class="mode-toggle shadow-sm">
+                <div class="mode-toggle-pill" id="toggle-pill"></div>
+                <button class="mode-btn active" id="btn-players" onclick="setMode('players')">
+                    🏆 Players
+                </button>
+                <button class="mode-btn" id="btn-campaign" onclick="setMode('campaign')">
+                    🎮 Campaign
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Players Board ──────────────────────────────────────────────── -->
+    <div id="panel-players" class="board-panel">
+
+        <!-- Podium -->
+        <div class="podium-wrap" id="players-podium">
+            <!-- filled by JS -->
+        </div>
+
+        <!-- Full Table -->
+        <div class="card border-0 shadow-sm rounded-4">
+            <div class="card-body p-0">
+                <div class="px-4 pt-4 pb-2 d-flex justify-content-between align-items-center">
+                    <h5 class="fw-bold text-uppercase mb-0">All Players</h5>
+                    <span class="small text-muted fw-bold">Ranked by net worth</span>
+                </div>
+                <div class="table-responsive">
+                    <table class="table align-middle mb-0">
+                        <thead>
+                            <tr class="border-bottom">
+                                <th class="px-4 py-3 small fw-bold text-muted text-uppercase">#</th>
+                                <th class="py-3 small fw-bold text-muted text-uppercase">Player</th>
+                                <th class="py-3 small fw-bold text-muted text-uppercase">Cash</th>
+                                <th class="py-3 small fw-bold text-muted text-uppercase">Invested</th>
+                                <th class="pe-4 py-3 small fw-bold text-muted text-uppercase text-end">Net Worth</th>
+                            </tr>
+                        </thead>
+                        <tbody id="players-tbody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Campaign Board ─────────────────────────────────────────────── -->
+    <div id="panel-campaign" class="board-panel" style="display:none;">
+
+        <!-- Progress callout (shown when logged in) -->
+        <div id="campaign-callout" class="alert border-0 rounded-4 shadow-sm mb-4 fw-bold" style="display:none!important;"></div>
+
+        <div class="card border-0 shadow-sm rounded-4">
+            <div class="card-body p-0">
+                <div class="px-4 pt-4 pb-2 d-flex justify-content-between align-items-center flex-wrap gap-2">
+                    <div>
+                        <h5 class="fw-bold text-uppercase mb-0">The Ladder</h5>
+                        <p class="small text-muted fw-bold mb-0">Climb past the NPCs to prove you're not broke</p>
+                    </div>
+                    <span id="campaign-rank-badge" class="badge bg-dark rounded-pill px-3 py-2" style="display:none;"></span>
+                </div>
+                <div class="table-responsive">
+                    <table class="table align-middle mb-0">
+                        <thead>
+                            <tr class="border-bottom">
+                                <th class="px-4 py-3 small fw-bold text-muted text-uppercase">#</th>
+                                <th class="py-3 small fw-bold text-muted text-uppercase">Name</th>
+                                <th class="py-3 small fw-bold text-muted text-uppercase">Bio</th>
+                                <th class="pe-4 py-3 small fw-bold text-muted text-uppercase text-end">Net Worth</th>
+                            </tr>
+                        </thead>
+                        <tbody id="campaign-tbody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+</div>
+
+<script>
+    const fmt = n => {
+        if (n >= 1_000_000_000) return '$' + (n / 1_000_000_000).toFixed(2) + 'B';
+        if (n >= 1_000_000)     return '$' + (n / 1_000_000).toFixed(2) + 'M';
+        if (n >= 1_000)         return '$' + (n / 1_000).toFixed(1) + 'K';
+        return '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    };
+
+    const fmtFull = n => '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+    // ── Toggle ────────────────────────────────────────────────────────
+
+    let currentMode = 'players';
+
+    function setMode(mode) {
+        currentMode = mode;
+
+        const pill       = document.getElementById('toggle-pill');
+        const btnPlayers = document.getElementById('btn-players');
+        const btnCampaign= document.getElementById('btn-campaign');
+        const panelP     = document.getElementById('panel-players');
+        const panelC     = document.getElementById('panel-campaign');
+
+        if (mode === 'players') {
+            pill.classList.remove('right');
+            btnPlayers.classList.add('active');
+            btnCampaign.classList.remove('active');
+            panelP.style.display = '';
+            panelC.style.display = 'none';
+            // Re-trigger animation
+            panelP.style.animation = 'none';
+            void panelP.offsetHeight;
+            panelP.style.animation = '';
+        } else {
+            pill.classList.add('right');
+            btnCampaign.classList.add('active');
+            btnPlayers.classList.remove('active');
+            panelC.style.display = '';
+            panelP.style.display = 'none';
+            panelC.style.animation = 'none';
+            void panelC.offsetHeight;
+            panelC.style.animation = '';
+            loadCampaign();
+        }
+    }
+
+    // ── Players ───────────────────────────────────────────────────────
+
+    function initials(name) {
+        return name.slice(0, 2).toUpperCase();
+    }
+
+    const PODIUM_EMOJI = ['🥇', '🥈', '🥉'];
+
+    function renderPodium(players) {
+        const el = document.getElementById('players-podium');
+        if (players.length < 1) { el.innerHTML = ''; return; }
+
+        // Order: 2nd, 1st, 3rd (classic podium shape)
+        const order = [
+            { data: players[1], cls: 'second', emoji: '🥈' },
+            { data: players[0], cls: 'first',  emoji: '🥇' },
+            { data: players[2], cls: 'third',  emoji: '🥉' },
+        ].filter(e => e.data);
+
+        el.innerHTML = order.map(({ data, cls, emoji }) => {
+            const youTag = data.is_you ? '<span class="you-badge ms-1">YOU</span>' : '';
+            return `
+            <div class="podium-col ${cls}">
+                <div class="podium-avatar">${initials(data.username)}</div>
+                <div class="podium-name">${data.username}${youTag}</div>
+                <div class="podium-worth">${fmt(data.net_worth)}</div>
+                <div class="podium-block">${emoji}</div>
+            </div>`;
+        }).join('');
+    }
+
+    async function loadPlayers() {
+        try {
+            const res  = await fetch('/api/leaderboard/players');
+            const data = await res.json();
+
+            const players = data.players.map((p, i) => ({
+                ...p,
+                rank: i + 1,
+                is_you: p.id === data.current_id
+            }));
+
+            renderPodium(players);
+
+            const tbody = document.getElementById('players-tbody');
+            tbody.innerHTML = players.map(p => {
+                const youTag = p.is_you ? '<span class="you-badge ms-1">YOU</span>' : '';
+                const rowCls = p.is_you ? 'rank-row is-you border-bottom' : 'rank-row border-bottom';
+                return `
+                <tr class="${rowCls}">
+                    <td class="px-4 py-3">
+                        <span class="rank-badge">${p.rank}</span>
+                    </td>
+                    <td class="py-3 fw-bold">${p.username}${youTag}</td>
+                    <td class="py-3 text-muted fw-bold">${fmtFull(p.balance)}</td>
+                    <td class="py-3 text-muted fw-bold">${fmtFull(p.portfolio_value)}</td>
+                    <td class="pe-4 py-3 text-end fw-bold fs-6">${fmt(p.net_worth)}</td>
+                </tr>`;
+            }).join('');
+        } catch (e) {
+            console.error('Failed to load players leaderboard:', e);
+        }
+    }
+
+    // ── Campaign ──────────────────────────────────────────────────────
+
+    async function loadCampaign() {
+        try {
+            const res  = await fetch('/api/leaderboard/campaign');
+            const data = await res.json();
+
+            const entries = data.entries; // sorted ascending (bottom → top)
+
+            // Reverse for display (best at top)
+            const ranked = [...entries].reverse().map((e, i) => ({
+                ...e,
+                rank: i + 1
+            }));
+
+            // Find the user's entry and their rank
+            const userEntry  = ranked.find(e => !e.is_npc);
+            const userRank   = userEntry ? userEntry.rank : null;
+            const total      = ranked.length;
+
+            // Callout
+            const callout = document.getElementById('campaign-callout');
+            const badge   = document.getElementById('campaign-rank-badge');
+            if (userEntry) {
+                const below = ranked.filter(e => e.rank > userEntry.rank && e.is_npc);
+                const above = ranked.filter(e => e.rank < userEntry.rank && e.is_npc);
+
+                callout.style.removeProperty('display');
+
+                if (below.length === 0) {
+                    callout.className = 'alert border-0 rounded-4 shadow-sm mb-4 fw-bold bg-success text-white';
+                    callout.innerHTML = `🎉 You beat everyone on the ladder! Absolute legend.`;
+                } else {
+                    const next = ranked.slice().reverse().find(e => e.is_npc && e.rank < userRank);
+                    const nextName = next ? next.name : null;
+                    const pct  = Math.round((above.length / (entries.filter(e => e.is_npc).length)) * 100);
+                    callout.className = 'alert border-0 rounded-4 shadow-sm mb-4 fw-bold bg-warning';
+                    callout.innerHTML = nextName
+                        ? `You've beaten <strong>${above.length}</strong> NPC${above.length !== 1 ? 's' : ''} (${pct}%). Next up: <strong>${nextName}</strong> — ${fmt(next.balance)}`
+                        : `You're ranked <strong>#${userRank}</strong> out of ${total} on the campaign ladder.`;
+                }
+
+                badge.style.display = '';
+                badge.innerText = `#${userRank} of ${total}`;
+            } else {
+                callout.style.setProperty('display', 'none', 'important');
+                badge.style.display = 'none';
+            }
+
+            // Table
+            const tbody = document.getElementById('campaign-tbody');
+            tbody.innerHTML = ranked.map(e => {
+                const isYou  = !e.is_npc;
+                const rowCls = isYou ? 'rank-row is-you border-bottom' : 'rank-row border-bottom';
+                const youTag = isYou ? '<span class="you-badge ms-1">YOU</span>' : '';
+                const icon   = isYou ? '😤' : '🤖';
+                const pctVsMax = ranked.length > 0
+                    ? (e.balance / ranked[0].balance) * 100
+                    : 100;
+
+                return `
+                <tr class="${rowCls}">
+                    <td class="px-4 py-3">
+                        <span class="rank-badge">${e.rank}</span>
+                    </td>
+                    <td class="py-3">
+                        <div class="fw-bold">${icon} ${e.name}${youTag}</div>
+                    </td>
+                    <td class="py-3">
+                        <div class="small text-muted fw-bold">${e.title}</div>
+                        <div class="campaign-progress-wrap" style="max-width:180px;">
+                            <div class="campaign-progress-bar" style="width:${Math.max(2, pctVsMax)}%"></div>
+                        </div>
+                    </td>
+                    <td class="pe-4 py-3 text-end fw-bold">${fmt(e.balance)}</td>
+                </tr>`;
+            }).join('');
+
+        } catch (e) {
+            console.error('Failed to load campaign leaderboard:', e);
+        }
+    }
+
+    // ── Boot ──────────────────────────────────────────────────────────
+    loadPlayers();
+    setInterval(loadPlayers, 10000);
+</script>
+
+{% endblock %}

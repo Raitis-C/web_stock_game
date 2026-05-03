@@ -125,7 +125,7 @@ def get_stocks_with_growth():
         current = stock['current_price']
         opening = stock['day_start_price']
         
-        growth = ((current - opening) / opening * 100) if opening > 0 else 0
+        growth = ((current - opening) / opening * 100) if (opening and opening > 0) else 0
         
         stock['change_percent'] = round(growth, 2)
         stocks_list.append(stock)
@@ -558,6 +558,92 @@ def get_portfolio():
 def logout():
     session.clear()
     return redirect(url_for('login'))
+
+
+# ── LEADERBOARD ────────────────────────────────────────────────────────────────
+
+@app.route('/leaderboard')
+def leaderboard():
+    return render_template('leaderboard.html')
+
+
+@app.route('/api/leaderboard/players')
+def leaderboard_players():
+    """All users ranked by net worth (cash + portfolio value)."""
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+
+    rows = conn.execute("""
+        SELECT
+            u.id,
+            u.username,
+            u.balance,
+            COALESCE((
+                SELECT SUM(s.current_price * p.quantity)
+                FROM portfolio p
+                JOIN stocks s ON p.stock_id = s.id
+                WHERE p.user_id = u.id
+            ), 0) AS portfolio_value,
+            u.balance + COALESCE((
+                SELECT SUM(s.current_price * p.quantity)
+                FROM portfolio p
+                JOIN stocks s ON p.stock_id = s.id
+                WHERE p.user_id = u.id
+            ), 0) AS net_worth
+        FROM users u
+        ORDER BY net_worth DESC
+    """).fetchall()
+    conn.close()
+
+    return jsonify({
+        'players':    [dict(r) for r in rows],
+        'current_id': session.get('user_id')
+    })
+
+
+@app.route('/api/leaderboard/campaign')
+def leaderboard_campaign():
+    """NPCs + the logged-in user, ranked together by net worth."""
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+
+    npcs = conn.execute(
+        "SELECT name, title, balance FROM npcs ORDER BY balance ASC"
+    ).fetchall()
+
+    user_net_worth = None
+    if 'user_id' in session:
+        row = conn.execute("""
+            SELECT
+                u.username,
+                u.balance + COALESCE((
+                    SELECT SUM(s.current_price * p.quantity)
+                    FROM portfolio p
+                    JOIN stocks s ON p.stock_id = s.id
+                    WHERE p.user_id = u.id
+                ), 0) AS net_worth
+            FROM users u WHERE u.id = ?
+        """, (session['user_id'],)).fetchone()
+        if row:
+            user_net_worth = {'username': row['username'], 'net_worth': row['net_worth']}
+
+    conn.close()
+
+    # Merge user into NPC list and sort
+    entries = [{'name': r['name'], 'title': r['title'],
+                'balance': r['balance'], 'is_npc': True} for r in npcs]
+
+    if user_net_worth:
+        entries.append({
+            'name':    user_net_worth['username'],
+            'title':   'That\'s you! 👋',
+            'balance': user_net_worth['net_worth'],
+            'is_npc':  False
+        })
+
+    entries.sort(key=lambda x: x['balance'])
+
+    return jsonify({'entries': entries})
 
 
 if __name__ == "__main__":
