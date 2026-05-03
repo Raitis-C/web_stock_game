@@ -397,10 +397,10 @@
                 } else {
                     const next = ranked.slice().reverse().find(e => e.is_npc && e.rank < userRank);
                     const nextName = next ? next.name : null;
-                    const pct  = Math.round((above.length / (entries.filter(e => e.is_npc).length)) * 100);
+                    const pct = Math.round((below.length / (entries.filter(e => e.is_npc).length)) * 100);
                     callout.className = 'alert border-0 rounded-4 shadow-sm mb-4 fw-bold bg-warning';
                     callout.innerHTML = nextName
-                        ? `You've beaten <strong>${above.length}</strong> NPC${above.length !== 1 ? 's' : ''} (${pct}%). Next up: <strong>${nextName}</strong> — ${fmt(next.balance)}`
+                        ? `You've beaten <strong>${below.length}</strong> NPC${below.length !== 1 ? 's' : ''} (${pct}%). Next up: <strong>${nextName}</strong> — ${fmt(next.balance)}`
                         : `You're ranked <strong>#${userRank}</strong> out of ${total} on the campaign ladder.`;
                 }
 
@@ -418,8 +418,10 @@
                 const rowCls = isYou ? 'rank-row is-you border-bottom' : 'rank-row border-bottom';
                 const youTag = isYou ? '<span class="you-badge ms-1">YOU</span>' : '';
                 const icon   = isYou ? '😤' : '🤖';
-                const pctVsMax = ranked.length > 0
-                    ? (e.balance / ranked[0].balance) * 100
+                const logMin = Math.log10(ranked[ranked.length - 1].balance);
+                const logMax = Math.log10(ranked[0].balance);
+                const pctVsMax = logMax > logMin
+                    ? ((Math.log10(e.balance) - logMin) / (logMax - logMin)) * 100
                     : 100;
 
                 return `
