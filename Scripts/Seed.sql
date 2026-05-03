@@ -1,11 +1,28 @@
 -- ==========================================================
 -- 1. INSERT STOCKS
+-- Prices updated to reflect real market values ~May 2026
+-- Volatility is the +/- swing per tick (scaled to asset price)
 -- ==========================================================
 INSERT OR IGNORE INTO stocks (symbol, name, initial_price, volatility) VALUES
-('SPACEX', 'Space Exploration Technologies Corp', 375, 5),
-('BTC', 'Bitcoin', 90000, 500),
-('WEAT', 'Wheat', 600, 1),
-('CL', 'Crude Oil WTI', 94, 3);
+-- Commodities & Crypto
+('BTC',    'Bitcoin',                              78000, 1500),
+('WEAT',   'Wheat',                                6.50, 0.15),
+('CL',     'Crude Oil WTI',                        102, 2),
+('DOGE',   'Dogecoin',                             0.10, 0.005),
+
+-- Tech & Stocks
+('SPACEX', 'Space Exploration Technologies Corp',  350, 8),
+('NVDA',   'NVIDIA Corporation',                   200, 6),
+('AAPL',   'Apple Inc.',                           280, 5),
+('BA',     'Boeing Company',                       227, 5),
+('ADBE',   'Adobe Inc.',                           250, 5),
+('DIS',    'Walt Disney Company',                  103, 3),
+('TSLA',   'Tesla Inc.',                           390, 12),
+
+-- Fictional / Private / Meme
+('XAI',    'xAI (Grok)',                           42, 3),
+('TITN',   'OceanGate Inc.',                       18, 2),
+('HYP',    'Hypixel Studios',                      55, 4);
 
 
 -- ==========================================================
@@ -16,7 +33,7 @@ INSERT OR IGNORE INTO News (headline, stock_id, effect) VALUES
 ('SpaceX rocket accidentally bumps into the sun, makes it 2% brighter', (SELECT id FROM stocks WHERE symbol = 'SPACEX'), 40.0),
 ('SpaceX intern accidentally launches CEO into low earth orbit', (SELECT id FROM stocks WHERE symbol = 'SPACEX'), -30.0),
 ('Elon Musk buys Mars, SpaceX stock reaches moon literally', (SELECT id FROM stocks WHERE symbol = 'SPACEX'), 150.0),
-('Starlink satellites accidentally broadcast e  veryones "private" browser history', (SELECT id FROM stocks WHERE symbol = 'SPACEX'), -45.0),
+('Starlink satellites accidentally broadcast everyones "private" browser history', (SELECT id FROM stocks WHERE symbol = 'SPACEX'), -45.0),
 
 -- BTC (High Volatility)
 ('Satoshi Nakamoto reveals he is actually three raccoons in a trench coat', (SELECT id FROM stocks WHERE symbol = 'BTC'), -40.0),
@@ -49,7 +66,7 @@ INSERT OR IGNORE INTO News (headline, stock_id, effect) VALUES
 -- DOGE
 ('Dogecoin founder finds a "really good stick" in the park', (SELECT id FROM stocks WHERE symbol = 'DOGE'), 300.0),
 ('Shiba Inu distracted by a squirrel; investors panic', (SELECT id FROM stocks WHERE symbol = 'DOGE'), -50.0),
-('Doge the dog passes away; investors sell everything because they "can''t look at the logo without sobbing"', (SELECT id FROM stocks WHERE symbol = 'DOGE'), -85.0);
+('Doge the dog passes away; investors sell everything because they "can''t look at the logo without sobbing"', (SELECT id FROM stocks WHERE symbol = 'DOGE'), -85.0),
 
 -- BA (Boeing)
 ('CEO of Boeing admits he just guesses what buttons do', (SELECT id FROM stocks WHERE symbol = 'BA'), -15.0),
@@ -83,7 +100,8 @@ INSERT OR IGNORE INTO News (headline, stock_id, effect) VALUES
 
 -- HYP (Hypixel)
 ('Hypixel buys the concept of "Human Rights", players below Skyblock lvl 400 dont recieve any', (SELECT id FROM stocks WHERE symbol = 'HYP'), 75.0),
-('Hypixel moves its hosting to a single Raspberry Pi located in a basement in Siberia to "save on cooling costs"', (SELECT id FROM stocks WHERE symbol = 'HYP'), -40.0), 
+('Hypixel moves its hosting to a single Raspberry Pi located in a basement in Siberia to "save on cooling costs"', (SELECT id FROM stocks WHERE symbol = 'HYP'), -40.0);
+
 
 -- ==========================================================
 -- 3. Set current_price and opening_price to initial_price if they are NULL
