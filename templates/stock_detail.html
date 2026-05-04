@@ -215,7 +215,15 @@
             const newName = currentChartType === 'candlestick' ? 'Market OHLC' : 'Price';
 
             if (mainChart && newData && newData.length > 0) {
+                const minX = mainChart.w.globals.minX;
+                const maxX = mainChart.w.globals.maxX;
+                const isZoomed = minX && maxX && minX !== maxX && minX !== Infinity;
+
                 mainChart.updateSeries([{ name: newName, data: newData }]);
+
+                if (isZoomed) {
+                    mainChart.zoomX(minX, maxX);
+                }
             }
         } catch (e) {
             console.error("Live update failed:", e);
