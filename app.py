@@ -14,6 +14,8 @@ load_dotenv()
 
 app = Flask(__name__)
 app.secret_key = os.getenv('FLASK_SECRET_KEY')
+if not app.secret_key:
+    raise RuntimeError("FLASK_SECRET_KEY is not set in your .env file!")
 DB_PATH = Path("stock_game_db.db")
 
 
@@ -387,7 +389,10 @@ def buy_stock():
     
     data = request.get_json()
     symbol   = data.get('symbol', '').upper().strip()
-    quantity = float(data.get('quantity', 0))
+    try:
+        quantity = float(data.get('quantity', 0))
+    except (TypeError, ValueError):
+        return jsonify({'success': False, 'error': 'Invalid quantity'}), 400
     
     if quantity <= 0:
         return jsonify({'success': False, 'error': 'Quantity must be greater than zero'}), 400
