@@ -118,23 +118,33 @@ def live_price_updates():
 
         time.sleep(5)
 
+def local_midnight_utc():
+    """Returns today's local midnight expressed as a UTC string for SQLite comparisons."""
+    now        = datetime.now()
+    midnight   = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    utc_offset = time.timezone if not time.daylight else time.altzone
+    return (midnight + timedelta(seconds=utc_offset)).strftime('%Y-%m-%d %H:%M:%S')
+
+
 def get_stocks_with_growth():
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
-    
+
+    midnight_str = local_midnight_utc()
+
     query = """
         SELECT 
             s.*,
             COALESCE(
                 (SELECT price FROM price_history ph 
                  WHERE ph.stock_id = s.id 
-                 AND date(ph.timestamp, 'localtime') = date('now', 'localtime')
+                 AND ph.timestamp >= ?
                  ORDER BY ph.timestamp ASC LIMIT 1),
                 s.opening_price
             ) as day_start_price
         FROM stocks s
     """
-    rows = conn.execute(query).fetchall()
+    rows = conn.execute(query, (midnight_str,)).fetchall()
     conn.close()
 
     stocks_list = []
@@ -540,6 +550,8 @@ def get_portfolio():
     user = conn.execute("SELECT balance FROM users WHERE id = ?", (session['user_id'],)).fetchone()
     cash = user['balance'] if user else 0
 
+    midnight_str = local_midnight_utc()
+
     rows = conn.execute("""
         SELECT
             s.symbol, s.name, s.current_price,
@@ -548,7 +560,7 @@ def get_portfolio():
             COALESCE(
                 (SELECT price FROM price_history ph
                  WHERE ph.stock_id = s.id
-                   AND date(ph.timestamp, 'localtime') = date('now', 'localtime')
+                   AND ph.timestamp >= ?
                  ORDER BY ph.timestamp ASC LIMIT 1),
                 s.opening_price
             ) AS day_start_price
@@ -556,7 +568,7 @@ def get_portfolio():
         JOIN stocks s ON p.stock_id = s.id
         WHERE p.user_id = ?
         ORDER BY total_value DESC
-    """, (session['user_id'],)).fetchall()
+    """, (midnight_str, session['user_id'])).fetchall()
     conn.close()
 
     holdings = []
