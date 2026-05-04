@@ -451,6 +451,7 @@
     // ── Boot ──────────────────────────────────────────────────────────
     loadPlayers();
     setInterval(loadPlayers, 10000);
+    setInterval(() => { if (currentMode === 'campaign') loadCampaign(); }, 10000);
 </script>
 
 {% endblock %}
