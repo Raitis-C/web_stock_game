@@ -219,10 +219,15 @@
                 const maxX = mainChart.w.globals.maxX;
                 const isZoomed = minX && maxX && minX !== maxX && minX !== Infinity;
 
-                mainChart.updateSeries([{ name: newName, data: newData }]);
-
                 if (isZoomed) {
+                    // Silently update data without animating
+                    mainChart.updateOptions({ chart: { animations: { enabled: false } } }, false, false);
+                    mainChart.updateSeries([{ name: newName, data: newData }]);
                     mainChart.zoomX(minX, maxX);
+                    // Re-enable so zoom gestures still animate
+                    mainChart.updateOptions({ chart: { animations: { enabled: true } } }, false, false);
+                } else {
+                    mainChart.updateSeries([{ name: newName, data: newData }]);
                 }
             }
         } catch (e) {
