@@ -3,7 +3,7 @@ import sqlite3
 import random
 import time
 import threading
-from flask import Flask, render_template, jsonify, request, session, redirect, url_for, flash
+from flask import Flask, render_template, jsonify, request, session, redirect, url_for, flash, g
 from werkzeug.security import generate_password_hash, check_password_hash
 import os
 from dotenv import load_dotenv
@@ -179,15 +179,26 @@ def get_db_news(limit=3):
         return []
 
 
-@app.context_processor
-def inject_user():
-    if 'user_id' in session:
+def get_current_user():
+    """Fetch the logged-in user once per request and cache it on Flask g."""
+    if 'user_id' not in session:
+        return None
+    if '_user' not in g:
         conn = sqlite3.connect(DB_PATH)
         conn.row_factory = sqlite3.Row
-        user = conn.execute("SELECT * FROM users WHERE id = ?", (session['user_id'],)).fetchone()
+        g._user = conn.execute(
+            "SELECT * FROM users WHERE id = ?", (session['user_id'],)
+        ).fetchone()
         conn.close()
-        return dict(user=user)
-    return dict(user=None)
+    return g._user
+
+
+@app.context_processor
+def inject_user():
+    # API routes never render templates — skip the DB hit entirely
+    if request.path.startswith('/api/'):
+        return dict(user=None)
+    return dict(user=get_current_user())
 
 @app.route('/')
 def dashboard():
