@@ -19,6 +19,19 @@ if not app.secret_key:
 DB_PATH = Path("stock_game_db.db")
 
 
+_trade_timestamps = {}  # user_id → last trade time
+
+def rate_limit_trade():
+    uid = session.get('user_id')
+    if not uid:
+        return False
+    last = _trade_timestamps.get(uid, 0)
+    if time.time() - last < 2:   # 2-second cooldown
+        return True   # blocked
+    _trade_timestamps[uid] = time.time()
+    return False
+
+
 def init_db():
     if DB_PATH.exists():
         print(f"🚀 {DB_PATH} already exists.")
@@ -369,6 +382,9 @@ def buy_stock():
     if 'user_id' not in session:
         return jsonify({'success': False, 'error': 'Not logged in'}), 401
     
+    if rate_limit_trade():
+        return jsonify({'success': False, 'error': 'Slow down! Wait a moment between trades.'}), 429
+
     data = request.get_json()
     symbol   = data.get('symbol', '').upper().strip()
     try:
