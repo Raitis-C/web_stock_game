@@ -251,6 +251,35 @@ def get_prices():
         })
     return jsonify(sorted(stock_list, key=lambda x: x['growth'], reverse=True))
 
+@app.route('/api/sparklines')
+def get_sparklines():
+    """Returns today's price history for ALL stocks in one query.
+    Replaces N individual /api/history calls for sparkline rendering."""
+    midnight_str = local_midnight_utc()
+
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+
+    rows = conn.execute("""
+        SELECT s.symbol, ph.price
+        FROM price_history ph
+        JOIN stocks s ON ph.stock_id = s.id
+        WHERE ph.timestamp >= ?
+        ORDER BY s.symbol, ph.timestamp ASC
+    """, (midnight_str,)).fetchall()
+    conn.close()
+
+    # Group prices by symbol — just the y values, sparklines don't need timestamps
+    sparklines = {}
+    for row in rows:
+        sym = row['symbol']
+        if sym not in sparklines:
+            sparklines[sym] = []
+        sparklines[sym].append(row['price'])
+
+    return jsonify(sparklines)
+
+
 @app.route('/api/news')
 def get_news_api():
     try:

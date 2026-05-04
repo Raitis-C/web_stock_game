@@ -2,8 +2,10 @@
 {% block title %}Stock Browser - Dumpster Fire Trades{% endblock %}
 
 {% block content %}
+
+<script src="https://cdn.jsdelivr.net/npm/apexcharts@5.10.6"></script>
+
 <div class="container py-4">
-    <!-- Header -->
     <div class="row mb-4">
         <div class="col">
             <h1 class="display-6 fw-bold text-uppercase">Stock Browser</h1>
@@ -11,48 +13,48 @@
         </div>
     </div>
 
-    <!-- Search Bar -->
     <div class="row mb-4">
         <div class="col-md-6">
-            <input type="text" id="searchInput" class="form-control form-control-lg bg-white border-0 shadow-sm rounded-pill px-4 fw-bold" placeholder="🔍 Search by symbol...">
+            <input type="text" id="searchInput"
+                   class="form-control form-control-lg bg-white border-0 shadow-sm rounded-pill px-4 fw-bold"
+                   placeholder="🔍 Search by symbol or name...">
         </div>
     </div>
 
-    <!-- Stock Grid -->
     <div class="row g-4" id="stockGrid">
         {% for stock in stocks %}
-        <div class="col-md-4 col-sm-6 stock-card-wrapper" data-symbol="{{ stock.symbol }}">
+        <div class="col-md-4 col-sm-6 stock-card-wrapper"
+             data-symbol="{{ stock.symbol }}"
+             data-name="{{ stock.name | lower }}">
             <a href="/stock/{{ stock.symbol }}" class="text-decoration-none text-dark">
-                <!-- Added 'position-relative' so we can anchor the chart inside -->
                 <div class="card stock-card-custom shadow-sm border-0 rounded-4 h-100 position-relative overflow-hidden">
                     <div class="card-body p-4 transition-all">
-                        
-                        <!-- Header Row -->
+
                         <div class="d-flex justify-content-between align-items-center mb-1">
                             <div class="d-flex align-items-center gap-2">
                                 <span class="fw-bold fs-4">{{ stock.symbol }}</span>
                                 <span class="badge bg-light text-dark border small">STK</span>
                             </div>
-                            <div class="fs-6 fw-bold {% if stock.change_percent > 0 %}text-success{% elif stock.change_percent < 0 %}text-danger{% else %}text-muted{% endif %}" id="growth-{{ stock.symbol }}">
-                                {% if stock.change_percent > 0 %}▲{% elif stock.change_percent < 0 %}▼{% else %}▬{% endif %} {{ stock.change_percent|abs }}%
+                            <div class="fs-6 fw-bold {% if stock.change_percent > 0 %}text-success{% elif stock.change_percent < 0 %}text-danger{% else %}text-muted{% endif %}"
+                                 id="growth-{{ stock.symbol }}">
+                                {% if stock.change_percent > 0 %}▲{% elif stock.change_percent < 0 %}▼{% else %}▬{% endif %}
+                                {{ stock.change_percent | abs }}%
                             </div>
                         </div>
-                        
-                        <!-- Price -->
+
+                        <div class="fs-5 text-muted fw-bold mb-1">{{ stock.name }}</div>
+
                         <div class="fs-2 fw-bold mb-3">
                             $<span id="price-{{ stock.symbol }}">{{ stock.current_price }}</span>
                         </div>
 
-                        <!-- Details Link -->
                         <small class="text-muted fw-bold">
                             <i class="bi bi-box-arrow-in-up-right"></i> View Details & Trade
                         </small>
 
-                        <!-- THE MINI CHART: Pinned to bottom right -->
-                        <div id="mini-chart-{{ stock.symbol }}" 
-                             style="position: absolute; right: 10px; bottom: 10px; width: 120px; height: 60px; pointer-events: none;">
+                        <div id="mini-chart-{{ stock.symbol }}"
+                             style="position:absolute; right:10px; bottom:10px; width:120px; height:60px; pointer-events:none;">
                         </div>
-                        
                     </div>
                 </div>
             </a>
@@ -61,95 +63,105 @@
     </div>
 </div>
 
-<!-- Load ApexCharts -->
-<script src="https://cdn.jsdelivr.net/npm/apexcharts@5.10.6"></script>
-
 <script>
-
     function fmtPrice(p) {
-        if (p < 0.01)  return p.toFixed(6); // e.g. 0.000234
-        if (p < 1)     return p.toFixed(4); // e.g. 0.1042  (DOGE)
-        if (p < 10)    return p.toFixed(3); // e.g. 6.503   (WEAT)
-        return p.toFixed(2);                // e.g. 88209.71 (BTC)
+        if (p < 0.01)  return p.toFixed(6);
+        if (p < 1)     return p.toFixed(4);
+        if (p < 10)    return p.toFixed(3);
+        return p.toFixed(2);
     }
 
-    // 1. Instant Search Filter (Your existing code)
-    document.getElementById('searchInput').addEventListener('keyup', function() {
-        let filter = this.value.toUpperCase();
-        let cards = document.querySelectorAll('.stock-card-wrapper');
-        
-        cards.forEach(card => {
-            let symbol = card.getAttribute('data-symbol');
-            if (symbol.includes(filter)) {
-                card.style.display = "";
-            } else {
-                card.style.display = "none";
-            }
+    // ── Search (symbol + name) ────────────────────────────────────────
+    document.getElementById('searchInput').addEventListener('keyup', function () {
+        const filter = this.value.toLowerCase();
+        document.querySelectorAll('.stock-card-wrapper').forEach(card => {
+            const symbol = card.dataset.symbol.toLowerCase();
+            const name   = card.dataset.name;
+            card.style.display = (symbol.includes(filter) || name.includes(filter)) ? '' : 'none';
         });
     });
 
-    // 2. The new Sparkline function
-    async function renderMiniChart(symbol, isPositive) {
+    // ── Sparklines ────────────────────────────────────────────────────
+    // Keyed by symbol so we can updateSeries() instead of recreating
+    const miniCharts = {};
+
+    async function renderAllSparklines() {
         try {
-            const response = await fetch(`/api/history/${symbol}?timeframe=today`);
-            const data = await response.json();
+            // ONE fetch for all stocks instead of 14 individual calls
+            const res  = await fetch('/api/sparklines');
+            const data = await res.json(); // { SYMBOL: [price, price, ...], ... }
 
-            const options = {
-                // FIX: Extract only the 'y' values for the sparkline
-                series: [{ data: data.history.map(point => point.y) }],
-                chart: {
-                    type: 'line',
-                    height: 60,
-                    sparkline: { enabled: true },
-                    animations: { enabled: false }
-                },
-                stroke: { curve: 'smooth', width: 2 },
-                colors: [isPositive ? '#198754' : '#dc3545'], 
-                tooltip: { enabled: false }
-            };
+            const cards = document.querySelectorAll('.stock-card-wrapper');
 
-            const chart = new ApexCharts(document.querySelector(`#mini-chart-${symbol}`), options);
-            chart.render();
-        } catch (error) {
-            console.error(`Error rendering mini chart for ${symbol}:`, error);
+            // Fire all chart renders in parallel
+            await Promise.all([...cards].map(async card => {
+                const symbol   = card.dataset.symbol;
+                const prices   = data[symbol];
+                if (!prices || prices.length < 2) return;
+
+                const growthEl  = document.getElementById(`growth-${symbol}`);
+                const isPositive = growthEl?.classList.contains('text-success');
+                const color      = isPositive ? '#198754' : '#dc3545';
+                const el         = document.querySelector(`#mini-chart-${symbol}`);
+                if (!el) return;
+
+                if (miniCharts[symbol]) {
+                    // Already exists — just update the data, no flicker
+                    miniCharts[symbol].updateSeries([{ data: prices }]);
+                    // Colour may have flipped intraday
+                    miniCharts[symbol].updateOptions({ colors: [color] }, false, false);
+                } else {
+                    // First render
+                    const chart = new ApexCharts(el, {
+                        series: [{ data: prices }],
+                        chart: {
+                            type: 'line', height: 60,
+                            sparkline: { enabled: true },
+                            animations: { enabled: false }
+                        },
+                        stroke:  { curve: 'smooth', width: 2 },
+                        colors:  [color],
+                        tooltip: { enabled: false }
+                    });
+                    chart.render();
+                    miniCharts[symbol] = chart;
+                }
+            }));
+        } catch (e) {
+            console.error('Sparkline fetch failed:', e);
         }
     }
 
-    // 3. Draw charts when the page loads
-    document.addEventListener('DOMContentLoaded', () => {
-        const cards = document.querySelectorAll('.stock-card-wrapper');
-        
-        cards.forEach(card => {
-            const symbol = card.getAttribute('data-symbol');
-            // Check the color class we rendered in HTML to decide if the line is green/red
-            const growthEl = document.getElementById(`growth-${symbol}`);
-            const isPositive = growthEl.classList.contains('text-success');
-            
-            renderMiniChart(symbol, isPositive);
-        });
-    });
-
-    // 4. Keep Prices Live (Your existing code)
-    setInterval(async () => {
+    // ── Live prices ───────────────────────────────────────────────────
+    async function updatePrices() {
         try {
-            const response = await fetch('/api/prices');
-            const liveStocks = await response.json();
-            
+            const res        = await fetch('/api/prices');
+            const liveStocks = await res.json();
+
             liveStocks.forEach(stock => {
                 const priceEl = document.getElementById(`price-${stock.symbol}`);
                 if (priceEl) priceEl.innerText = fmtPrice(stock.price);
-                
+
                 const growthEl = document.getElementById(`growth-${stock.symbol}`);
                 if (growthEl) {
-                    const arrow = stock.growth > 0 ? '▲' : stock.growth < 0 ? '▼' : '▬';
+                    const arrow      = stock.growth > 0 ? '▲' : stock.growth < 0 ? '▼' : '▬';
                     const colorClass = stock.growth > 0 ? 'text-success' : stock.growth < 0 ? 'text-danger' : 'text-muted';
-                    growthEl.className = `fs-6 fw-bold ${colorClass}`;
-                    growthEl.innerText = `${arrow} ${Math.abs(stock.growth).toFixed(2)}%`;
+                    growthEl.className  = `fs-6 fw-bold ${colorClass}`;
+                    growthEl.innerText  = `${arrow} ${Math.abs(stock.growth).toFixed(2)}%`;
                 }
             });
-        } catch (error) {
-            console.error("Error fetching live prices:", error);
+        } catch (e) {
+            console.error('Price update failed:', e);
         }
-    }, 5000);
+    }
+
+    // ── Boot ──────────────────────────────────────────────────────────
+    // Run both immediately in parallel on page load
+    Promise.all([updatePrices(), renderAllSparklines()]);
+
+    // Prices every 5 s, sparklines every 30 s (they change slowly)
+    setInterval(updatePrices, 5000);
+    setInterval(renderAllSparklines, 30000);
 </script>
+
 {% endblock %}
