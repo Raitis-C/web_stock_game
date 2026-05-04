@@ -311,11 +311,12 @@
         if (players.length < 1) { el.innerHTML = ''; return; }
 
         // Order: 2nd, 1st, 3rd (classic podium shape)
-        const order = [
+        const slots = [
             { data: players[1], cls: 'second', emoji: '🥈' },
             { data: players[0], cls: 'first',  emoji: '🥇' },
             { data: players[2], cls: 'third',  emoji: '🥉' },
-        ].filter(e => e.data);
+        ];
+        const order = slots.filter(e => e.data != null);
 
         el.innerHTML = order.map(({ data, cls, emoji }) => {
             const youTag = data.is_you ? '<span class="you-badge ms-1">YOU</span>' : '';
