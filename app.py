@@ -162,24 +162,6 @@ def get_stocks_with_growth():
         
     return stocks_list
 
-def get_db_news(limit=3):
-    try:
-        conn = sqlite3.connect(DB_PATH)
-        conn.row_factory = sqlite3.Row
-        query = """
-            SELECT n.headline, n.effect as impact, s.symbol 
-            FROM News n
-            JOIN stocks s ON n.stock_id = s.id
-            ORDER BY RANDOM()
-            LIMIT ?
-        """
-        news_rows = conn.execute(query, (limit,)).fetchall()
-        conn.close()
-        return [dict(row) for row in news_rows]
-    except Exception as e:
-        print(f"❌ Error fetching news: {e}")
-        return []
-
 
 def get_current_user():
     """Fetch the logged-in user once per request and cache it on Flask g."""
