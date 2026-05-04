@@ -14,7 +14,7 @@
     <div class="row align-items-center mb-4">
         <div class="col-md-8">
             <h1 class="display-4 fw-bold mb-0">{{ stock.name }} ({{ stock.symbol }})</h1>
-            <h2 class="text-muted fw-bold">$<span id="current-price">{{ stock.current_price }}</span></h2>
+            <h2 class="text-muted fw-bold">$<span id="current-price">{{ "%.4f"|format(stock.current_price) if stock.current_price < 1 else "%.2f"|format(stock.current_price) }}</span></h2>
         </div>
         <div class="col-md-4 text-md-end">
             <div class="d-flex justify-content-end mb-3">
@@ -126,6 +126,14 @@
 
 <script src="https://cdn.jsdelivr.net/npm/apexcharts@5.10.6"></script>
 <script>
+
+    function fmtPrice(p) {
+        if (p < 0.01)  return p.toFixed(6); // e.g. 0.000234
+        if (p < 1)     return p.toFixed(4); // e.g. 0.1042  (DOGE)
+        if (p < 10)    return p.toFixed(3); // e.g. 6.503   (WEAT)
+        return p.toFixed(2);                // e.g. 88209.71 (BTC)
+    }
+
     let mainChart;
     let currentChartType = 'area';
 
@@ -205,7 +213,7 @@
 
             if (thisStock) {
                 currentPrice = thisStock.price;
-                document.getElementById('current-price').innerText = currentPrice.toFixed(2);
+                document.getElementById('current-price').innerText = fmtPrice(currentPrice);
                 syncInputsToPrice();
             }
 

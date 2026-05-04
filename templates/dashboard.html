@@ -59,6 +59,14 @@
 </div>
 
 <script>
+
+    function fmtPrice(p) {
+        if (p < 0.01)  return p.toFixed(6); // e.g. 0.000234
+        if (p < 1)     return p.toFixed(4); // e.g. 0.1042  (DOGE)
+        if (p < 10)    return p.toFixed(3); // e.g. 6.503   (WEAT)
+        return p.toFixed(2);                // e.g. 88209.71 (BTC)
+    }
+
     // ── State ─────────────────────────────────────────────────────────────
     // Keyed by symbol — survives across ticks
     const dashCharts = {};
@@ -96,7 +104,7 @@
                             <span class="badge bg-light text-dark border small">STK</span>
                         </div>
                         <div class="fs-4 fw-bold mb-1">
-                            $<span id="price-${symbol}">${price.toFixed(2)}</span>
+                            $<span id="price-${symbol}">${fmtPrice(price)}</span>
                         </div>
                         <div class="fs-6 fw-bold ${colorClass}" id="growth-${symbol}">
                             ${arrow} ${Math.abs(growth).toFixed(2)}%
@@ -170,7 +178,7 @@
 
             // Update price text
             const priceEl = document.getElementById(`price-${symbol}`);
-            if (priceEl) priceEl.innerText = price.toFixed(2);
+            if (priceEl) priceEl.innerText = fmtPrice(price);
 
             // Update growth badge
             const growthEl = document.getElementById(`growth-${symbol}`);

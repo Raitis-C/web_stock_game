@@ -65,6 +65,14 @@
 <script src="https://cdn.jsdelivr.net/npm/apexcharts@5.10.6"></script>
 
 <script>
+
+    function fmtPrice(p) {
+        if (p < 0.01)  return p.toFixed(6); // e.g. 0.000234
+        if (p < 1)     return p.toFixed(4); // e.g. 0.1042  (DOGE)
+        if (p < 10)    return p.toFixed(3); // e.g. 6.503   (WEAT)
+        return p.toFixed(2);                // e.g. 88209.71 (BTC)
+    }
+
     // 1. Instant Search Filter (Your existing code)
     document.getElementById('searchInput').addEventListener('keyup', function() {
         let filter = this.value.toUpperCase();
@@ -129,7 +137,7 @@
             
             liveStocks.forEach(stock => {
                 const priceEl = document.getElementById(`price-${stock.symbol}`);
-                if (priceEl) priceEl.innerText = stock.price.toFixed(2);
+                if (priceEl) priceEl.innerText = fmtPrice(stock.price);
                 
                 const growthEl = document.getElementById(`growth-${stock.symbol}`);
                 if (growthEl) {
