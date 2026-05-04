@@ -51,10 +51,14 @@ def init_db():
             except Exception as cleanup_err:
                 print(f"⚠️ Cleanup failed: {cleanup_err}")
 
+
+
+pending_impacts = []  # list of (apply_at, stock_id, spiked_price)
+
 def live_price_updates():
-    """Background engine: handles 5-second wiggles AND random news events."""
+    global pending_impacts
     next_news_time = time.time() + max(30, (5 * 60) + random.uniform(-300, 300))
-    
+
     while True:
         try:
             conn = sqlite3.connect(DB_PATH)
@@ -62,17 +66,28 @@ def live_price_updates():
             cursor = conn.cursor()
             cursor.execute("PRAGMA foreign_keys = ON;")
 
+            # --- 1. PRICE WIGGLE ---
             stocks = cursor.execute("SELECT id, current_price, volatility FROM stocks").fetchall()
             for stock in stocks:
                 vol = stock['volatility']
                 change = random.uniform(-vol, vol)
                 decimals = 4 if stock['current_price'] < 1 else 2
                 new_price = round(max(0.0001, stock['current_price'] + change), decimals)
-                
                 cursor.execute("UPDATE stocks SET current_price = ? WHERE id = ?", (new_price, stock['id']))
                 cursor.execute("INSERT INTO price_history (stock_id, price) VALUES (?, ?)", (stock['id'], new_price))
 
+            # --- 2. APPLY ANY PENDING IMPACTS ---
             current_time = time.time()
+            still_pending = []
+            for (apply_at, stock_id, spiked_price) in pending_impacts:
+                if current_time >= apply_at:
+                    cursor.execute("UPDATE stocks SET current_price = ? WHERE id = ?", (spiked_price, stock_id))
+                    cursor.execute("INSERT INTO price_history (stock_id, price) VALUES (?, ?)", (stock_id, spiked_price))
+                else:
+                    still_pending.append((apply_at, stock_id, spiked_price))
+            pending_impacts = still_pending
+
+            # --- 3. TRIGGER NEW NEWS EVENT ---
             if current_time >= next_news_time:
                 news_item = cursor.execute("""
                     SELECT n.id, n.effect, s.id as stock_id, s.current_price, s.symbol, n.headline
@@ -83,19 +98,21 @@ def live_price_updates():
 
                 if news_item:
                     multiplier = 1 + (news_item['effect'] / 100.0)
-                    spiked_price = round(max(0.01, news_item['current_price'] * multiplier), 2)
+                    spiked_price = round(max(0.0001, news_item['current_price'] * multiplier), 2)
 
-                    cursor.execute("UPDATE stocks SET current_price = ? WHERE id = ?", (spiked_price, news_item['stock_id']))
-                    cursor.execute("INSERT INTO price_history (stock_id, price) VALUES (?, ?)", (news_item['stock_id'], spiked_price))
+                    # Announce immediately — players can now react
                     cursor.execute("INSERT INTO news_events (news_id) VALUES (?)", (news_item['id'],))
-                    
-                    print(f"🚨 BREAKING NEWS: {news_item['headline']} applied to {news_item['symbol']}")
+                    print(f"📰 ANNOUNCED: {news_item['headline']} — impact in ~15s")
+
+                    # Schedule the actual price hit for 10–30 seconds from now
+                    delay = random.uniform(30, 90)
+                    pending_impacts.append((current_time + delay, news_item['stock_id'], spiked_price))
 
                 next_news_time = time.time() + max(30, (5 * 60) + random.uniform(-300, 300))
 
             conn.commit()
             conn.close()
-            
+
         except Exception as e:
             print(f"❌ Engine Error: {e}")
 
