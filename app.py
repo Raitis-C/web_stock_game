@@ -242,11 +242,9 @@ def get_stock_history(symbol):
     conn.row_factory = sqlite3.Row
 
     if timeframe == 'today':
-        from datetime import datetime, timedelta
-        import time as _time
         now = datetime.now()
         midnight = now.replace(hour=0, minute=0, second=0, microsecond=0)
-        utc_offset = _time.timezone if not _time.daylight else _time.altzone
+        utc_offset = time.timezone if not time.daylight else time.altzone
         midnight_utc = midnight + timedelta(seconds=utc_offset)
         midnight_str = midnight_utc.strftime('%Y-%m-%d %H:%M:%S')
 
@@ -257,7 +255,7 @@ def get_stock_history(symbol):
             AND ph.timestamp >= ?
             ORDER BY ph.timestamp ASC
         """, (symbol, midnight_str)).fetchall()
-        
+
     else:
         history = conn.execute("""
             SELECT price, timestamp FROM price_history ph
