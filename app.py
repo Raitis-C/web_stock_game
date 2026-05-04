@@ -240,24 +240,32 @@ def get_stock_history(symbol):
     
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
-    
+
     if timeframe == 'today':
-        query = """
+        from datetime import datetime, timedelta
+        import time as _time
+        now = datetime.now()
+        midnight = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        utc_offset = _time.timezone if not _time.daylight else _time.altzone
+        midnight_utc = midnight + timedelta(seconds=utc_offset)
+        midnight_str = midnight_utc.strftime('%Y-%m-%d %H:%M:%S')
+
+        history = conn.execute("""
             SELECT price, timestamp FROM price_history ph
             JOIN stocks s ON ph.stock_id = s.id
-            WHERE s.symbol = ? 
-              AND date(ph.timestamp, 'localtime') = date('now', 'localtime')
+            WHERE s.symbol = ?
+            AND ph.timestamp >= ?
             ORDER BY ph.timestamp ASC
-        """
-    else:
-        query = """
-            SELECT price, timestamp FROM price_history ph
-            JOIN stocks s ON ph.stock_id = s.id
-            WHERE s.symbol = ? 
-            ORDER BY ph.timestamp ASC
-        """
+        """, (symbol, midnight_str)).fetchall()
         
-    history = conn.execute(query, (symbol,)).fetchall()
+    else:
+        history = conn.execute("""
+            SELECT price, timestamp FROM price_history ph
+            JOIN stocks s ON ph.stock_id = s.id
+            WHERE s.symbol = ?
+            ORDER BY ph.timestamp ASC
+        """, (symbol,)).fetchall()
+
     conn.close()
 
     line_points = [{"x": row['timestamp'], "y": row['price']} for row in history]
