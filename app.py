@@ -8,6 +8,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 import os
 from dotenv import load_dotenv
 from datetime import datetime, timedelta
+import secrets
 
 
 load_dotenv()
@@ -540,6 +541,9 @@ def sell_stock():
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
+        if request.form.get('csrf_token') != session.get('csrf_token'):
+            flash("Invalid request", "danger")
+            return redirect(url_for('login'))
         username = request.form.get('username')
         password = request.form.get('password')
         
@@ -554,11 +558,16 @@ def login():
             return redirect(url_for('dashboard'))
         
         flash("Invalid username or password", "danger")
-    return render_template('login.html', user=None)
+    token = secrets.token_hex(16)
+    session['csrf_token'] = token
+    return render_template('login.html', user=None, csrf_token=token)
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
+        if request.form.get('csrf_token') != session.get('csrf_token'):
+            flash("Invalid request", "danger")
+            return redirect(url_for('register'))
         username = request.form.get('username')
         password = request.form.get('password')
         hashed_pw = generate_password_hash(password)
@@ -574,7 +583,9 @@ def register():
         except sqlite3.IntegrityError:
             flash("Username already exists", "danger")
             
-    return render_template('login.html', register=True, user=None)
+    token = secrets.token_hex(16)
+    session['csrf_token'] = token
+    return render_template('login.html', register=True, user=None, csrf_token=token)
 
 @app.route('/portfolio')
 def portfolio():
