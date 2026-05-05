@@ -1,24 +1,6 @@
 {% extends "base.html" %}
 
 {% block content %}
-<style>
-    .chart-container-flat {
-        background-color: #f1f3f5;
-        border: 1px solid #dee2e6;
-        border-radius: 12px;
-        flex-grow: 1;
-        margin: 10px;
-        overflow: hidden;
-    }
-
-    .stock-card-custom {
-        transition: transform 0.2s;
-    }
-    
-    .stock-card-custom:hover {
-        transform: translateY(-2px);
-    }
-</style>
 
 <!-- ApexCharts MUST load before any script that uses it -->
 <script src="https://cdn.jsdelivr.net/npm/apexcharts@5.10.6"></script>
