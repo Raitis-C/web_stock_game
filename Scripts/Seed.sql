@@ -108,20 +108,21 @@ INSERT OR IGNORE INTO News (headline, stock_id, effect) VALUES
 -- 3. INSERT NPCs (Campaign Leaderboard)
 -- ==========================================================
 INSERT OR IGNORE INTO npcs (name, title, balance) VALUES
-('Your Neighbour''s Dog',       'Ate the stock tips, still beat you',       7800),
-('Your Dad',                    'Bought printer stocks in 2003',            11500),
-('Karen from HR',               'Complained her way to profit',             16200),
-('Your Economics Teacher',      'C+ in their own class',                    24800),
-('The Kid in Your Basement',    'Suspiciously good at this',                38500),
-('Michael Reeves'' Goldfish',   'No arms, somehow winning',                 57200),
-('A Random Pigeon',             'Pecked the right buttons',                 82000),
-('Wolf of Wall Street''s Intern','Still not getting paid',                 118000),
-('Gordon Ramsay''s Accountant', 'This portfolio is RAW',                   195000),
-('Guy Who Sold Bitcoin in 2013','Living with regret & gains',              340000),
-('Definitely Not a Bot™',       'Beep boop, all your money gone',          610000),
-('Warren Buffett''s Cat',       'Long-term holder. Very long.',           1400000),
-('Elon''s Left Eyebrow',        'More sentient than expected',        4200000000),
-('Elon Musk',                   'Just in it for the chaos',         420000000000);
+('Blūma',                         'Nogarlaikoja skolēnu līdz nāvei',          -3400),
+('Your Neighbour''s Dog',         'Ate the stock tips, still beat you',        7800),
+('Your Dad',                      'Bought printer stocks in 2003',            11500),
+('Karen from HR',                 'Complained her way to profit',             16200),
+('Your Economics Teacher',        'C+ in their own class',                    24800),
+('The Kid in Your Basement',      'Suspiciously good at this',                38500),
+('Michael Reeves'' Goldfish',     'No arms, somehow winning',                 57200),
+('Wolf of Wall Street''s Intern', 'Still not getting paid',                  118000),
+('Gordon Ramsay''s Accountant',   'This portfolio is RAW',                   195000),
+('Guy Who Sold Bitcoin in 2013',  'Living with regret & gains',              340000),
+('Warren Buffett''s Cat',         'Long-term holder. Very long.',           1400000),
+('Armīns',                        'Took a shit',                       867563790.63),
+('Elon''s Left Eyebrow',          'Es ist Zeit für Säauberung',          4200000000),
+('Elon Musk',                     'Wir müssen die Juden ausrotten',    420000000000);
+
 
 
 -- ==========================================================
