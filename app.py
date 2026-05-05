@@ -75,12 +75,14 @@ def live_price_updates():
     global pending_impacts
     next_news_time = time.time() + max(30, (5 * 60) + random.uniform(-300, 300))
 
+    conn = sqlite3.connect(DB_PATH, check_same_thread=False)
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA foreign_keys = ON;")
+    conn.execute("PRAGMA journal_mode=WAL;")
+
     while True:
         try:
-            conn = sqlite3.connect(DB_PATH)
-            conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
-            cursor.execute("PRAGMA foreign_keys = ON;")
 
             # --- 1. PRICE WIGGLE ---
             stocks = cursor.execute("SELECT id, current_price, volatility FROM stocks").fetchall()
@@ -115,22 +117,26 @@ def live_price_updates():
                 if news_item:
                     multiplier = 1 + (news_item['effect'] / 100.0)
                     spiked_price = round(max(0.0001, news_item['current_price'] * multiplier), 2)
-
-                    # Announce immediately — players can now react
                     cursor.execute("INSERT INTO news_events (news_id) VALUES (?)", (news_item['id'],))
-                    print(f"📰 ANNOUNCED: {news_item['headline']} — impact in ~15s")
-
-                    # Schedule the actual price hit for 10–30 seconds from now
+                    print(f"📰 ANNOUNCED: {news_item['headline']} — impact in ~30s")
                     delay = random.uniform(30, 90)
                     pending_impacts.append((current_time + delay, news_item['stock_id'], spiked_price))
 
                 next_news_time = time.time() + max(30, (5 * 60) + random.uniform(-300, 300))
 
             conn.commit()
-            conn.close()
 
         except Exception as e:
             print(f"❌ Engine Error: {e}")
+            # Reconnect if the connection dropped
+            try:
+                conn.close()
+            except:
+                pass
+            conn = sqlite3.connect(DB_PATH, check_same_thread=False)
+            conn.row_factory = sqlite3.Row
+            conn.execute("PRAGMA foreign_keys = ON;")
+            conn.execute("PRAGMA journal_mode=WAL;")
 
         time.sleep(5)
 

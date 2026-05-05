@@ -217,7 +217,7 @@
                 syncInputsToPrice();
             }
 
-            const histRes = await fetch(`/api/history/${symbol}?timeframe=today`);
+            const histRes = await fetch(`/api/history/${symbol}?timeframe=all`);
             const data    = await histRes.json();
             const newData = currentChartType === 'candlestick' ? data.candle : (data.line || data.history);
             const newName = currentChartType === 'candlestick' ? 'Market OHLC' : 'Price';
