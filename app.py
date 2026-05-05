@@ -8,6 +8,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 import os
 from dotenv import load_dotenv
 from datetime import datetime, timedelta
+from flask_wtf.csrf import CSRFProtect
 
 
 load_dotenv()
@@ -15,6 +16,7 @@ load_dotenv()
 app = Flask(__name__)
 app.secret_key = os.getenv('FLASK_SECRET_KEY')
 DB_PATH = Path("stock_game_db.db")
+csrf = CSRFProtect(app)
 
 
 def init_db():
