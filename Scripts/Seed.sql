@@ -118,7 +118,7 @@ INSERT OR IGNORE INTO npcs (name, title, balance) VALUES
 ('Gordon Ramsay''s Accountant',   'This portfolio is RAW',                   195000),
 ('Guy Who Sold Bitcoin in 2013',  'Living with regret & gains',              340000),
 ('Warren Buffett''s Cat',         'Long-term holder. Very long.',           1400000),
-('Armīns',                        'Took a shit',                       867563790.63),
+('Landro',                        'Took a shit',                       867563790.63),
 ('Elon''s Left Eyebrow',          'Es ist Zeit für Säauberung',          4200000000),
 ('Elon Musk',                     'Wir müssen die Juden ausrotten',    420000000000);
 
