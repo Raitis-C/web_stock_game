@@ -47,9 +47,10 @@ Compete against other players on the leaderboard, or climb the **Campaign ladder
 | Auth | Werkzeug password hashing |
 | Background engine | Python threading |
 
----
 
 ⚠️ **Heads up:** This project is ~95% vibecoded with Claude. It works, but the codebase may contain the occasional unhinged architectural decision. You have been warned.
+
+---
 
 ## Getting Started
 
