@@ -8,29 +8,13 @@ from werkzeug.security import generate_password_hash, check_password_hash
 import os
 from dotenv import load_dotenv
 from datetime import datetime, timedelta
-import secrets
 
 
 load_dotenv()
 
 app = Flask(__name__)
 app.secret_key = os.getenv('FLASK_SECRET_KEY')
-if not app.secret_key:
-    raise RuntimeError("FLASK_SECRET_KEY is not set in your .env file!")
 DB_PATH = Path("stock_game_db.db")
-
-
-_trade_timestamps = {}  # user_id → last trade time
-
-def rate_limit_trade():
-    uid = session.get('user_id')
-    if not uid:
-        return False
-    last = _trade_timestamps.get(uid, 0)
-    if time.time() - last < 2:   # 2-second cooldown
-        return True   # blocked
-    _trade_timestamps[uid] = time.time()
-    return False
 
 
 def init_db():
@@ -75,14 +59,12 @@ def live_price_updates():
     global pending_impacts
     next_news_time = time.time() + max(30, (5 * 60) + random.uniform(-300, 300))
 
-    conn = sqlite3.connect(DB_PATH, check_same_thread=False)
-    conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA foreign_keys = ON;")
-    conn.execute("PRAGMA journal_mode=WAL;")
-
     while True:
         try:
+            conn = sqlite3.connect(DB_PATH)
+            conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
+            cursor.execute("PRAGMA foreign_keys = ON;")
 
             # --- 1. PRICE WIGGLE ---
             stocks = cursor.execute("SELECT id, current_price, volatility FROM stocks").fetchall()
@@ -117,26 +99,22 @@ def live_price_updates():
                 if news_item:
                     multiplier = 1 + (news_item['effect'] / 100.0)
                     spiked_price = round(max(0.0001, news_item['current_price'] * multiplier), 2)
+
+                    # Announce immediately — players can now react
                     cursor.execute("INSERT INTO news_events (news_id) VALUES (?)", (news_item['id'],))
-                    print(f"📰 ANNOUNCED: {news_item['headline']} — impact in ~30s")
+                    print(f"📰 ANNOUNCED: {news_item['headline']} — impact in ~15s")
+
+                    # Schedule the actual price hit for 10–30 seconds from now
                     delay = random.uniform(30, 90)
                     pending_impacts.append((current_time + delay, news_item['stock_id'], spiked_price))
 
                 next_news_time = time.time() + max(30, (5 * 60) + random.uniform(-300, 300))
 
             conn.commit()
+            conn.close()
 
         except Exception as e:
             print(f"❌ Engine Error: {e}")
-            # Reconnect if the connection dropped
-            try:
-                conn.close()
-            except:
-                pass
-            conn = sqlite3.connect(DB_PATH, check_same_thread=False)
-            conn.row_factory = sqlite3.Row
-            conn.execute("PRAGMA foreign_keys = ON;")
-            conn.execute("PRAGMA journal_mode=WAL;")
 
         time.sleep(5)
 
@@ -181,6 +159,24 @@ def get_stocks_with_growth():
         stocks_list.append(stock)
         
     return stocks_list
+
+def get_db_news(limit=3):
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        query = """
+            SELECT n.headline, n.effect as impact, s.symbol 
+            FROM News n
+            JOIN stocks s ON n.stock_id = s.id
+            ORDER BY RANDOM()
+            LIMIT ?
+        """
+        news_rows = conn.execute(query, (limit,)).fetchall()
+        conn.close()
+        return [dict(row) for row in news_rows]
+    except Exception as e:
+        print(f"❌ Error fetching news: {e}")
+        return []
 
 
 def get_current_user():
@@ -255,10 +251,32 @@ def get_prices():
         })
     return jsonify(sorted(stock_list, key=lambda x: x['growth'], reverse=True))
 
+def downsample(prices, target=120):
+    n = len(prices)
+    if n <= target:
+        return prices
+    result = []
+    for i, price in enumerate(prices):
+        age = n - 1 - i
+        if age < target:
+            result.append(price)
+        elif age < 360:
+            if i % 2 == 0:
+                result.append(price)
+        elif age < 720:
+            if i % 4 == 0:
+                result.append(price)
+        else:
+            if i % 8 == 0:
+                result.append(price)
+    if result and result[-1] != prices[-1]:
+        result.append(prices[-1])
+    return result
+
+
 @app.route('/api/sparklines')
 def get_sparklines():
-    """Returns today's price history for ALL stocks in one query.
-    Replaces N individual /api/history calls for sparkline rendering."""
+    """Returns today's downsampled price history for ALL stocks in one query."""
     midnight_str = local_midnight_utc()
 
     conn = sqlite3.connect(DB_PATH)
@@ -273,15 +291,14 @@ def get_sparklines():
     """, (midnight_str,)).fetchall()
     conn.close()
 
-    # Group prices by symbol — just the y values, sparklines don't need timestamps
-    sparklines = {}
+    raw = {}
     for row in rows:
         sym = row['symbol']
-        if sym not in sparklines:
-            sparklines[sym] = []
-        sparklines[sym].append(row['price'])
+        if sym not in raw:
+            raw[sym] = []
+        raw[sym].append(row['price'])
 
-    return jsonify(sparklines)
+    return jsonify({sym: downsample(prices) for sym, prices in raw.items()})
 
 
 @app.route('/api/news')
@@ -389,15 +406,9 @@ def buy_stock():
     if 'user_id' not in session:
         return jsonify({'success': False, 'error': 'Not logged in'}), 401
     
-    if rate_limit_trade():
-        return jsonify({'success': False, 'error': 'Slow down! Wait a moment between trades.'}), 429
-
     data = request.get_json()
     symbol   = data.get('symbol', '').upper().strip()
-    try:
-        quantity = float(data.get('quantity', 0))
-    except (TypeError, ValueError):
-        return jsonify({'success': False, 'error': 'Invalid quantity'}), 400
+    quantity = float(data.get('quantity', 0))
     
     if quantity <= 0:
         return jsonify({'success': False, 'error': 'Quantity must be greater than zero'}), 400
@@ -547,9 +558,6 @@ def sell_stock():
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        if request.form.get('csrf_token') != session.get('csrf_token'):
-            flash("Invalid request", "danger")
-            return redirect(url_for('login'))
         username = request.form.get('username')
         password = request.form.get('password')
         
@@ -564,16 +572,11 @@ def login():
             return redirect(url_for('dashboard'))
         
         flash("Invalid username or password", "danger")
-    token = secrets.token_hex(16)
-    session['csrf_token'] = token
-    return render_template('login.html', user=None, csrf_token=token)
+    return render_template('login.html', user=None)
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
-        if request.form.get('csrf_token') != session.get('csrf_token'):
-            flash("Invalid request", "danger")
-            return redirect(url_for('register'))
         username = request.form.get('username')
         password = request.form.get('password')
         hashed_pw = generate_password_hash(password)
@@ -589,9 +592,7 @@ def register():
         except sqlite3.IntegrityError:
             flash("Username already exists", "danger")
             
-    token = secrets.token_hex(16)
-    session['csrf_token'] = token
-    return render_template('login.html', register=True, user=None, csrf_token=token)
+    return render_template('login.html', register=True, user=None)
 
 @app.route('/portfolio')
 def portfolio():
