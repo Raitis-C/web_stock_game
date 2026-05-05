@@ -54,7 +54,7 @@ Compete against other players on the leaderboard, or climb the **Campaign ladder
 ### 1. Clone the repo
 
 ```bash
-git clone https://github.com/yourname/web_stock_game.git
+git clone https://github.com/Raitis-C/web_stock_game.git
 cd web_stock_game
 ```
 
