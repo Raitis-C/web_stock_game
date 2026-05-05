@@ -32,7 +32,7 @@ Compete against other players on the leaderboard, or climb the **Campaign ladder
 - 🏆 **Player leaderboard** — ranked by net worth (cash + portfolio value)
 - 🎮 **Campaign leaderboard** — beat a ladder of NPCs with increasing wealth
 - 🔍 **Stock browser** — search by symbol or name, live sparklines per card
-- 🔐 **Auth** — register/login with hashed passwords and CSRF protection
+- 🔐 **Auth** — register/login with hashed passwords and CSRF protection on forms
 
 ---
 
@@ -44,9 +44,8 @@ Compete against other players on the leaderboard, or climb the **Campaign ladder
 | Database | SQLite (WAL mode) |
 | Frontend | Bootstrap 5.3 (Bootswatch Brite) |
 | Charts | ApexCharts |
-| Auth | Werkzeug password hashing |
+| Auth | Werkzeug password hashing + Flask-WTF CSRF |
 | Background engine | Python threading |
-
 
 ⚠️ **Heads up:** This project is ~95% vibecoded with Claude. It works, but the codebase may contain the occasional unhinged architectural decision. You have been warned.
 
@@ -69,6 +68,12 @@ source venv/bin/activate        # Windows: venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
+If you don't have a `requirements.txt`, install manually:
+
+```bash
+pip install flask werkzeug python-dotenv flask-wtf gunicorn
+```
+
 ### 3. Set up your environment file
 
 Create a `.env` file in the project root:
@@ -77,10 +82,14 @@ Create a `.env` file in the project root:
 FLASK_SECRET_KEY=some_long_random_string_here
 ```
 
-You can generate a good key with:
+Generate a strong key with:
 ```bash
 python -c "import secrets; print(secrets.token_hex(32))"
 ```
+
+> **Note:** The key can be any string, but use a long random one. Flask uses it to sign session cookies — a weak key is a security risk. Flask-WTF automatically uses this same key for CSRF token generation, so no separate CSRF key is needed.
+>
+> If someone else is hosting the app, they use their own key in their own `.env`. The keys don't need to match — changing the key just logs out any active sessions, which doesn't matter on a fresh server.
 
 ### 4. Run the app
 
@@ -121,7 +130,7 @@ Dumpster-Fire-Trades/
 
 ## Deployment (Linux Server)
 
-The recommended setup is **Gunicorn + Nginx** with a subdomain. A full deployment guide is below.
+The recommended setup is **Gunicorn + Nginx** with a subdomain.
 
 ### Install dependencies on the server
 
@@ -131,7 +140,7 @@ git clone https://github.com/Raitis-C/Dumpster-Fire-Trades.git stocks
 cd stocks
 python3 -m venv venv
 source venv/bin/activate
-pip install flask werkzeug python-dotenv gunicorn
+pip install flask werkzeug python-dotenv flask-wtf gunicorn
 echo "FLASK_SECRET_KEY=your_key_here" > .env
 ```
 
