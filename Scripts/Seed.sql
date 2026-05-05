@@ -108,7 +108,6 @@ INSERT OR IGNORE INTO News (headline, stock_id, effect) VALUES
 -- 3. INSERT NPCs (Campaign Leaderboard)
 -- ==========================================================
 INSERT OR IGNORE INTO npcs (name, title, balance) VALUES
-('Blūma',                         'Nogarlaikoja skolēnu līdz nāvei',          -3400),
 ('Your Neighbour''s Dog',         'Ate the stock tips, still beat you',        7800),
 ('Your Dad',                      'Bought printer stocks in 2003',            11500),
 ('Karen from HR',                 'Complained her way to profit',             16200),
