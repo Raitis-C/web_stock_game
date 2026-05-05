@@ -49,13 +49,15 @@ Compete against other players on the leaderboard, or climb the **Campaign ladder
 
 ---
 
+⚠️ **Heads up:** This project is ~95% vibecoded with Claude. It works, but the codebase may contain the occasional unhinged architectural decision. You have been warned.
+
 ## Getting Started
 
 ### 1. Clone the repo
 
 ```bash
-git clone https://github.com/Raitis-C/web_stock_game.git
-cd web_stock_game
+git clone https://github.com/Raitis-C/Dumpster-Fire-Trades.git
+cd Dumpster-Fire-Trades
 ```
 
 ### 2. Create a virtual environment
@@ -92,7 +94,7 @@ On first run, the database is built automatically from `Scripts/schema.sql` and 
 ## Project Structure
 
 ```
-web_stock_game/
+Dumpster-Fire-Trades/
 ├── app.py                  # Flask app, routes, background price engine
 ├── Scripts/
 │   ├── schema.sql          # Database schema
@@ -124,7 +126,7 @@ The recommended setup is **Gunicorn + Nginx** with a subdomain. A full deploymen
 
 ```bash
 cd /var/www
-git clone https://github.com/yourname/web_stock_game.git stocks
+git clone https://github.com/Raitis-C/Dumpster-Fire-Trades.git stocks
 cd stocks
 python3 -m venv venv
 source venv/bin/activate
