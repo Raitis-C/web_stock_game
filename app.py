@@ -54,9 +54,10 @@ def init_db():
 
 
 pending_impacts = []  # list of (apply_at, stock_id, spiked_price)
+_cleanup_counter = 0
 
 def live_price_updates():
-    global pending_impacts
+    global pending_impacts, _cleanup_counter
     next_news_time = time.time() + max(30, (5 * 60) + random.uniform(-300, 300))
 
     while True:
@@ -65,6 +66,15 @@ def live_price_updates():
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
             cursor.execute("PRAGMA foreign_keys = ON;")
+
+            # --- 0. CLEANUP (every 5 mins) ---
+            _cleanup_counter += 1
+            if _cleanup_counter >= 60:
+                cursor.execute("""
+                    DELETE FROM price_history 
+                    WHERE timestamp < datetime('now', '-24 hours')
+                """)
+                _cleanup_counter = 0
 
             # --- 1. PRICE WIGGLE ---
             stocks = cursor.execute("SELECT id, current_price, volatility FROM stocks").fetchall()
