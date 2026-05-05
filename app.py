@@ -752,6 +752,19 @@ def leaderboard_campaign():
 
     return jsonify({'entries': entries})
 
+@app.route('/api/reset-account', methods=['POST'])
+def reset_account():
+    if 'user_id' not in session:
+        return jsonify({'success': False, 'error': 'Not logged in'}), 401
+    
+    conn = sqlite3.connect(DB_PATH)
+    conn.execute("PRAGMA foreign_keys = ON;")
+    conn.execute("DELETE FROM portfolio WHERE user_id = ?", (session['user_id'],))
+    conn.execute("UPDATE users SET balance = 10000.0 WHERE id = ?", (session['user_id'],))
+    conn.commit()
+    conn.close()
+    
+    return jsonify({'success': True})
 
 if __name__ == "__main__":
     init_db()
