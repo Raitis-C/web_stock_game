@@ -413,6 +413,7 @@ def get_holdings(symbol):
 
 
 @app.route('/api/buy', methods=['POST'])
+@csrf.exempt
 def buy_stock():
     """Buy shares: deducts cost from balance, adds to portfolio."""
     if 'user_id' not in session:
@@ -489,6 +490,7 @@ def buy_stock():
 
 
 @app.route('/api/sell', methods=['POST'])
+@csrf.exempt
 def sell_stock():
     """Sell shares: adds proceeds to balance, removes from portfolio."""
     if 'user_id' not in session:
@@ -755,6 +757,7 @@ def leaderboard_campaign():
     return jsonify({'entries': entries})
 
 @app.route('/api/reset-account', methods=['POST'])
+@csrf.exempt
 def reset_account():
     if 'user_id' not in session:
         return jsonify({'success': False, 'error': 'Not logged in'}), 401
