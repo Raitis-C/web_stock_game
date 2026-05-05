@@ -25,6 +25,7 @@
                     <label class="form-label small fw-bold text-muted text-uppercase">Password</label>
                     <input type="password" name="password" class="form-control form-control-lg bg-light border-0" required>
                 </div>
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                 <button type="submit" class="btn btn-dark w-100 btn-lg rounded-3 mb-3">
                     {% if register %}Create Account{% else %}Sign In{% endif %}
                 </button>
