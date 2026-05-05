@@ -97,6 +97,7 @@ INSERT OR IGNORE INTO News (headline, stock_id, effect) VALUES
 ('Elon Musk straightens hand at 49° angle, triggers worldwide tesla protest', (SELECT id FROM stocks WHERE symbol = 'TSLA'), -18.0),
 ('Elon Musk offers to "personally assist" in repopulating Earth; Tesla stock surges as 10,000 interns report HR violations', (SELECT id FROM stocks WHERE symbol = 'TSLA'), -40.0),
 ('Self-Driving car accidentally runs over a pedestrian who turns out to be a wanted terrorist; feature is immediately rebranded as "Bounty Mode" and Tesla claims the reward money', (SELECT id FROM stocks WHERE symbol = 'TSLA'), 95.0),
+('Tesla acquires Brizzers™ strictly to train its Auto-Park neural net on how to aggressively ram large objects into impossibly tight spaces', (SELECT id FROM stocks WHERE symbol = 'TSLA'), 120.0),
 
 -- HYP (Hypixel)
 ('Hypixel buys the concept of "Human Rights", players below Skyblock lvl 400 dont recieve any', (SELECT id FROM stocks WHERE symbol = 'HYP'), 75.0),
