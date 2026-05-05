@@ -81,14 +81,22 @@
                         <!-- Buttons -->
                         <div class="col-12">
                             <div class="d-flex gap-3">
-                                <button class="btn btn-success btn-lg flex-grow-1 fw-bold rounded-3 py-3 shadow-sm"
+                                <button class="btn btn-success btn-lg flex-grow-1 fw-bold rounded-3 py-3"
                                         id="btn-buy" onclick="executeTrade('buy')">
                                     <i class="bi bi-graph-up-arrow"></i> BUY {{ stock.symbol }}
                                 </button>
-                                <button class="btn btn-danger btn-lg flex-grow-1 fw-bold rounded-3 py-3 shadow-sm"
-                                        id="btn-sell" onclick="executeTrade('sell')">
-                                    <i class="bi bi-graph-down-arrow"></i> SELL {{ stock.symbol }}
-                                </button>
+                                <div class="btn-group flex-grow-1">
+                                    <button class="btn btn-danger btn-lg fw-bold rounded-start-3 py-3 w-100"
+                                            id="btn-sell" onclick="executeTrade('sell')">
+                                        <i class="bi bi-graph-down-arrow"></i> SELL {{ stock.symbol }}
+                                    </button>
+                                    <button class="btn btn-danger btn-lg fw-bold rounded-end-3 px-3"
+                                            onclick="fillSellAll(); executeTrade('sell');"
+                                            title="Sell all shares"
+                                            style="border-left: 2px solid rgba(0,0,0,0.2) !important;">
+                                        <i class="bi bi-slash-lg"></i>
+                                    </button>
+                                </div>
                             </div>
                         </div>
 
@@ -126,6 +134,15 @@
 
 <script src="https://cdn.jsdelivr.net/npm/apexcharts@5.10.6"></script>
 <script>
+
+    function fillSellAll() {
+        const sharesEl = document.getElementById('shares-owned');
+        const qty = parseFloat(sharesEl?.innerText);
+        if (!qty || qty <= 0) return;
+        sharesInput.value = qty;
+        lastEdited = 'shares';
+        usdInput.value = (qty * currentPrice).toFixed(2);
+    }
 
     function fmtPrice(p) {
         if (p < 0.01)  return p.toFixed(6); // e.g. 0.000234
