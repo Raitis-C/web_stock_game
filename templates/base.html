@@ -55,7 +55,8 @@
         <div class="container text-center">
             <div class="row fw-bold mb-3">
                 <div class="col">
-                    <a href="#" class="text-dark text-decoration-none mx-3 opacity-75">How to Play</a>
+                    <a href="#" class="text-dark text-decoration-none mx-3 opacity-75"
+                        data-bs-toggle="modal" data-bs-target="#howToPlayModal">How to Play</a>
                     <a href="#" class="text-dark text-decoration-none mx-3 opacity-75">Game Rules</a>
                     {% if user %}
                     <a href="#" class="text-danger text-decoration-none mx-3"
@@ -71,6 +72,72 @@
     </footer>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- How to Play modal -->
+    <div class="modal fade" id="howToPlayModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content border-0 rounded-4 shadow-lg">
+                <div class="modal-header border-0 pb-0">
+                    <h3 class="modal-title fw-bold">📖 How to Play</h3>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+
+                    <div class="mb-4">
+                        <h5 class="fw-bold">💰 You have $10,000</h5>
+                        <p class="text-muted fw-bold mb-0">It's fake. Spend it like it isn't.</p>
+                    </div>
+
+                    <div class="mb-4">
+                        <h5 class="fw-bold">📈 Stocks go up. Stocks go down.</h5>
+                        <p class="text-muted fw-bold mb-0">Buy low, sell high. Try not to cry.</p>
+                    </div>
+
+                    <div class="mb-4">
+                        <h5 class="fw-bold">📰 News happens. React.</h5>
+                        <p class="text-muted fw-bold mb-0">A headline drops. A stock moves. Be there first or be poor.</p>
+                    </div>
+
+                    <div class="mb-4">
+                        <h5 class="fw-bold">🏆 Beat everyone.</h5>
+                        <p class="text-muted fw-bold mb-0">Climb the leaderboard. Overtake your neighbour's dog. Try to beat Elon. (You won't.)</p>
+                    </div>
+
+                    <div class="mb-3">
+                        <h5 class="fw-bold">🗑️ Broke?</h5>
+                        <p class="text-muted fw-bold mb-0">Reset Account in the footer. We don't judge. (We judge a little.)</p>
+                    </div>
+
+                    <hr>
+
+                    <!-- Nerd dropdown -->
+                    <div>
+                        <button class="btn btn-outline-secondary btn-sm fw-bold rounded-pill"
+                                type="button"
+                                data-bs-toggle="collapse"
+                                data-bs-target="#nerdSection">
+                            🤓 I'm a nerd, tell me more
+                        </button>
+                        <div class="collapse mt-3" id="nerdSection">
+                            <div class="d-flex flex-column gap-3">
+                                <p class="text-muted fw-bold small mb-0">⏱️ Prices tick every 5 seconds. The background engine never sleeps, even when you do.</p>
+                                <p class="text-muted fw-bold small mb-0">📰 News headlines appear 30–90 seconds before the price actually changes. That gap is your edge — or your downfall.</p>
+                                <p class="text-muted fw-bold small mb-0">💹 Each stock has its own volatility. Wheat barely moves. Bitcoin will age you 10 years in an afternoon.</p>
+                                <p class="text-muted fw-bold small mb-0">🛒 On the stock page you can enter shares OR dollar amount — they sync live with the current price. The little sliver on the right of the Sell button dumps your entire position instantly.</p>
+                                <p class="text-muted fw-bold small mb-0">📊 Your portfolio tracks daily P&L vs the opening price. History older than 24h gets deleted. This is not a long-term investment platform.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+                <div class="modal-footer border-0 pt-0">
+                    <button class="btn btn-dark fw-bold rounded-pill px-4" data-bs-dismiss="modal">
+                        Got it, let's lose some money
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- Reset Confirmation Modal -->
     <div class="modal fade" id="resetModal" tabindex="-1">
