@@ -71,6 +71,7 @@
         // 1. Insert the card HTML
         const container = document.getElementById('trending-container');
         const cardHtml  = `
+            <a href="/stock/${symbol}" class="text-decoration-none text-dark">
             <div class="card stock-card-custom shadow-sm border-0 rounded-4 overflow-hidden"
                  id="card-${symbol}">
                 <div class="card-body d-flex p-0" style="min-height: 120px;">
@@ -91,7 +92,8 @@
                         </div>
                     </div>
                 </div>
-            </div>`;
+            </div>
+            </a>`;
         container.insertAdjacentHTML('beforeend', cardHtml);
 
         // 2. Use pre-fetched sparkline data — no extra HTTP request needed
